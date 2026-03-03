@@ -289,3 +289,143 @@ html, body, #root {
   border-radius: 6px;
   border: 1px solid #2a2d3a;
 }
+
+/* === Progress Bar === */
+.progress-bar-container {
+  height: 6px;
+  background: #1e2130;
+  border-radius: 3px;
+  margin: 8px 0 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #238636, #7ee787);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* === Level Label === */
+.level-label {
+  font-size: 0.8rem;
+  color: #aaa;
+  font-weight: 500;
+  padding: 4px 10px;
+  background: #1e2130;
+  border-radius: 4px;
+}
+
+.tick-progress {
+  font-size: 0.75rem;
+  color: #7ee787;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 8px;
+}
+
+/* === GameOverlay === */
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: overlay-fade-in 0.3s ease-out;
+}
+
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.overlay-card {
+  background: #1a1d27;
+  border: 1px solid #2a2d3a;
+  border-radius: 16px;
+  padding: 32px 48px;
+  text-align: center;
+  min-width: 340px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+  animation: overlay-scale-in 0.3s ease-out;
+}
+
+@keyframes overlay-scale-in {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.overlay-icon {
+  font-size: 3rem;
+  margin-bottom: 8px;
+}
+
+.overlay-title {
+  font-size: 1.4rem;
+  margin-bottom: 4px;
+}
+
+.overlay-title-win {
+  color: #7ee787;
+}
+
+.overlay-title-lose {
+  color: #f85149;
+}
+
+.overlay-subtitle {
+  color: #888;
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+}
+
+.overlay-stats {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  margin-bottom: 24px;
+}
+
+.overlay-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.overlay-stat-label {
+  font-size: 0.75rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.overlay-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #e0e0e0;
+  font-variant-numeric: tabular-nums;
+}
+
+.overlay-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-next {
+  background: #1f6feb;
+  color: #fff;
+}
+
+.btn-next:hover {
+  background: #388bfd;
+}
+
+.overlay-complete {
+  color: #7ee787;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-top: 4px;
+}

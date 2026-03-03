@@ -8,6 +8,7 @@ import type {
   MemoryRequest,
 } from '../domain/types'
 import type { SessionState } from '../game/GameSession'
+import type { FinishReason } from '../game/GameSession'
 import { GameSession } from '../game/GameSession'
 import { getLevelConfig } from '../game/LevelManager'
 
@@ -27,6 +28,10 @@ export type GameStore = {
   levelId: number
   /** Последнее сообщение об ошибке (авто-очищается в UI) */
   lastError: string | null
+  /** Причина завершения: win/lose/null */
+  finishReason: FinishReason
+  /** Целевое количество тиков для текущего уровня */
+  targetTicks: number
 
   // --- Actions ---
   startGame: (levelId: number) => void
@@ -40,6 +45,8 @@ export type GameStore = {
   pause: () => void
   resume: () => void
   clearError: () => void
+  /** Перейти на следующий уровень (levelId + 1) */
+  nextLevel: () => void
 }
 
 /** Ссылка на текущую GameSession (хранится вне store — мутабельный объект) */
@@ -61,6 +68,8 @@ function syncFromSession(
     stability: snap.stability,
     metrics: snap.metrics,
     levelId,
+    finishReason: snap.finishReason,
+    targetTicks: snap.targetTicks,
   })
 }
 
@@ -84,6 +93,8 @@ export function createGameStore() {
     metrics: null,
     levelId: 1,
     lastError: null,
+    finishReason: null,
+    targetTicks: 0,
 
     // --- Actions ---
 
@@ -149,6 +160,13 @@ export function createGameStore() {
       if (!session) return
       session.resume()
       syncFromSession(set, get().levelId)
+    },
+
+    nextLevel() {
+      const current = get().levelId
+      const next = current + 1
+      if (next > 5) return
+      get().startGame(next)
     },
   }))
 }

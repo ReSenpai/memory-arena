@@ -21,6 +21,7 @@ const levels: LevelConfig[] = [
     programIds: ['A'],
     leakThreshold: 30,
     fragmentationPenalty: false,
+    targetTicks: 60,
   },
   {
     id: 2,
@@ -32,6 +33,7 @@ const levels: LevelConfig[] = [
     programIds: ['A'],
     leakThreshold: 25,
     fragmentationPenalty: false,
+    targetTicks: 80,
   },
   {
     id: 3,
@@ -43,6 +45,7 @@ const levels: LevelConfig[] = [
     programIds: ['A', 'B', 'C'],
     leakThreshold: 20,
     fragmentationPenalty: false,
+    targetTicks: 100,
   },
   {
     id: 4,
@@ -54,6 +57,7 @@ const levels: LevelConfig[] = [
     programIds: ['A', 'B', 'C'],
     leakThreshold: 15,
     fragmentationPenalty: true,
+    targetTicks: 120,
   },
   {
     id: 5,
@@ -65,6 +69,7 @@ const levels: LevelConfig[] = [
     programIds: ['A', 'B', 'C', 'D'],
     leakThreshold: 10,
     fragmentationPenalty: true,
+    targetTicks: 150,
   },
 ]
 

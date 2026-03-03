@@ -178,4 +178,30 @@ describe('gameStore', () => {
       expect(store.getState().lastError).toBeNull()
     })
   })
+
+  describe('finishReason и targetTicks', () => {
+    it('начальное finishReason = null', () => {
+      expect(store.getState().finishReason).toBeNull()
+    })
+
+    it('targetTicks устанавливается при startGame', () => {
+      store.getState().startGame(1)
+      expect(store.getState().targetTicks).toBeGreaterThan(0)
+    })
+  })
+
+  describe('nextLevel', () => {
+    it('переходит на следующий уровень', () => {
+      store.getState().startGame(1)
+      store.getState().nextLevel()
+      expect(store.getState().levelId).toBe(2)
+      expect(store.getState().sessionState).toBe('playing')
+    })
+
+    it('не переходит выше уровня 5', () => {
+      store.getState().startGame(5)
+      store.getState().nextLevel()
+      expect(store.getState().levelId).toBe(5)
+    })
+  })
 })

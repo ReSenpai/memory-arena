@@ -1,11 +1,16 @@
 import { useGameStore } from '../store/gameStore'
 
-/** Панель статистики — score, память, фрагментация, стабильность */
+/** Панель статистики — score, память, фрагментация, стабильность, прогресс */
 export function StatsPanel() {
   const score = useGameStore((s) => s.score)
   const stability = useGameStore((s) => s.stability)
   const metrics = useGameStore((s) => s.metrics)
   const currentTick = useGameStore((s) => s.currentTick)
+  const targetTicks = useGameStore((s) => s.targetTicks)
+
+  /** Цвет стабильности в зависимости от значения */
+  const stabilityColor =
+    stability > 0.6 ? '#7ee787' : stability > 0.3 ? '#f0883e' : '#f85149'
 
   return (
     <div className="stats-panel">
@@ -18,15 +23,28 @@ export function StatsPanel() {
 
       <div className="stat-row">
         <span className="stat-label">Стабильность</span>
-        <span className="stat-value">
+        <span className="stat-value" style={{ color: stabilityColor }}>
           {(stability * 100).toFixed(0)}%
         </span>
       </div>
 
       <div className="stat-row">
-        <span className="stat-label">Тик</span>
-        <span className="stat-value">{currentTick}</span>
+        <span className="stat-label">Прогресс</span>
+        <span className="stat-value">
+          {currentTick}/{targetTicks || '—'}
+        </span>
       </div>
+
+      {targetTicks > 0 && (
+        <div className="progress-bar-container">
+          <div
+            className="progress-bar-fill"
+            style={{
+              width: `${Math.min(100, (currentTick / targetTicks) * 100)}%`,
+            }}
+          />
+        </div>
+      )}
 
       {metrics && (
         <>

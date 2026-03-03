@@ -14,6 +14,9 @@ import { RequestGenerator } from './RequestGenerator'
 /** Состояние игровой сессии */
 export type SessionState = 'idle' | 'playing' | 'paused' | 'finished'
 
+/** Причина завершения сессии */
+export type FinishReason = 'win' | 'lose' | null
+
 /** Полный снимок состояния сессии (для UI) */
 export type SessionSnapshot = {
   blocks: ReadonlyArray<MemoryBlock>
@@ -23,6 +26,8 @@ export type SessionSnapshot = {
   stability: number
   tick: number
   state: SessionState
+  finishReason: FinishReason
+  targetTicks: number
 }
 
 /**
@@ -42,6 +47,7 @@ export class GameSession {
   private currentTick = 0
   private state: SessionState = 'idle'
   private pendingRequests: MemoryRequest[] = []
+  private finishReason: FinishReason = null
 
   constructor(config: LevelConfig, seed: number) {
     this.config = config
@@ -76,13 +82,27 @@ export class GameSession {
 
   // --- Тик ---
 
-  /** Продвигает время на 1 тик: генерирует запросы, проверяет утечки */
+  /** Продвигает время на 1 тик: генерирует запросы, проверяет утечки, проверяет условия победы/поражения */
   tick(): void {
     if (this.state !== 'playing') return
 
     this.currentTick++
     this.generateRequest()
     this.checkLeaks()
+
+    // Проверка поражения: стабильность упала до 0
+    const summary = this.scorer.getSummary()
+    if (summary.stability <= 0) {
+      this.finishReason = 'lose'
+      this.state = 'finished'
+      return
+    }
+
+    // Проверка победы: продержался targetTicks
+    if (this.currentTick >= this.config.targetTicks) {
+      this.finishReason = 'win'
+      this.state = 'finished'
+    }
   }
 
   // --- Действия игрока ---
@@ -182,6 +202,8 @@ export class GameSession {
       stability: summary.stability,
       tick: this.currentTick,
       state: this.state,
+      finishReason: this.finishReason,
+      targetTicks: this.config.targetTicks,
     }
   }
 

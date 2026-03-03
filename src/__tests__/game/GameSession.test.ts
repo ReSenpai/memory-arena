@@ -237,6 +237,69 @@ describe('GameSession', () => {
       expect(snapshot).toHaveProperty('stability')
       expect(snapshot).toHaveProperty('tick')
       expect(snapshot).toHaveProperty('state')
+      expect(snapshot).toHaveProperty('finishReason')
+      expect(snapshot).toHaveProperty('targetTicks')
+    })
+
+    it('finishReason начинается как null', () => {
+      const session = new GameSession(config, seed)
+      session.start()
+      expect(session.getSnapshot().finishReason).toBeNull()
+    })
+
+    it('targetTicks соответствует конфигу уровня', () => {
+      const session = new GameSession(config, seed)
+      session.start()
+      expect(session.getSnapshot().targetTicks).toBe(config.targetTicks)
+    })
+  })
+
+  describe('авто-завершение', () => {
+    it('победа при достижении targetTicks', () => {
+      // Создаём конфиг с малым targetTicks
+      const shortConfig = { ...config, targetTicks: 5, leakThreshold: 999 }
+      const session = new GameSession(shortConfig, seed)
+      session.start()
+
+      for (let i = 0; i < 5; i++) {
+        session.tick()
+      }
+
+      expect(session.getState()).toBe('finished')
+      expect(session.getSnapshot().finishReason).toBe('win')
+    })
+
+    it('поражение при падении стабильности до 0', () => {
+      // Маленькая память, быстрые запросы, низкий порог утечки
+      const hardConfig = {
+        ...config,
+        targetTicks: 10000,
+        leakThreshold: 2,
+        requestInterval: 1,
+        memorySize: 256,
+        minBlockSize: 1,
+        maxBlockSize: 2,
+      }
+      const session = new GameSession(hardConfig, seed)
+      session.start()
+
+      // Аллоцируем все входящие запросы, но не освобождаем —
+      // через leakThreshold тиков каждый станет утечкой
+      for (let i = 0; i < 500; i++) {
+        if (session.getState() === 'finished') break
+
+        const reqs = session.getPendingRequests()
+        for (const r of reqs) {
+          if (r.type === 'allocate') {
+            session.allocate(r.payload.id)
+          }
+        }
+
+        session.tick()
+      }
+
+      expect(session.getState()).toBe('finished')
+      expect(session.getSnapshot().finishReason).toBe('lose')
     })
   })
 })

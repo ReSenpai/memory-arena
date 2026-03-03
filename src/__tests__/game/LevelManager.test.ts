@@ -9,6 +9,7 @@ describe('LevelManager', () => {
       expect(config.id).toBe(1)
       expect(config.memorySize).toBeGreaterThan(0)
       expect(config.programIds.length).toBeGreaterThan(0)
+      expect(config.targetTicks).toBeGreaterThan(0)
     })
 
     it('возвращает конфиг для уровня 5', () => {

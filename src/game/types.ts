@@ -20,4 +20,6 @@ export type LevelConfig = {
   leakThreshold: number
   /** Штраф за фрагментацию включён */
   fragmentationPenalty: boolean
+  /** Сколько тиков нужно продержаться для прохождения уровня */
+  targetTicks: number
 }

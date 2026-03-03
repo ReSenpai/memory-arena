@@ -6,6 +6,7 @@ import { RequestQueue } from './RequestQueue'
 import { GameControls } from './GameControls'
 import { MemoryCanvas } from './MemoryCanvas'
 import { ErrorNotification } from './ErrorNotification'
+import { GameOverlay } from './GameOverlay'
 import { useGameLoop } from './useGameLoop'
 import './App.css'
 
@@ -73,6 +74,7 @@ export function App() {
       </main>
 
       <ErrorNotification />
+      <GameOverlay />
     </div>
   )
 }

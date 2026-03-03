@@ -173,13 +173,13 @@
 
 ---
 
-## Checkpoint 14: Уровни 2-5
-- [ ] Реализовать переход между уровнями
-- [ ] Level 2: случайные размеры + таймер
-- [ ] Level 3: несколько программ
-- [ ] Level 4: fragmentation penalty
-- [ ] Level 5: adversarial patterns
-- [ ] Экран победы / game over
+## Checkpoint 14: Уровни 2-5 ✅
+- [x] Реализовать переход между уровнями
+- [x] Level 2: случайные размеры + таймер
+- [x] Level 3: несколько программ
+- [x] Level 4: fragmentation penalty
+- [x] Level 5: adversarial patterns
+- [x] Экран победы / game over
 
 **Результат:** полная игра с 5 уровнями.
 
