@@ -1,11 +1,12 @@
 import { StatsPanel } from './StatsPanel'
 import { RequestQueue } from './RequestQueue'
 import { GameControls } from './GameControls'
+import { MemoryCanvas } from './MemoryCanvas'
 import './App.css'
 
 /**
  * Главный компонент — трёхпанельный layout:
- * Слева: статистика | Центр: визуализация памяти (placeholder) | Справа: запросы
+ * Слева: статистика | Центр: визуализация памяти | Справа: запросы
  */
 export function App() {
   return (
@@ -22,9 +23,7 @@ export function App() {
 
         <section className="panel panel-center">
           <h2>Память</h2>
-          <div className="memory-placeholder">
-            Canvas будет здесь (Checkpoint 12)
-          </div>
+          <MemoryCanvas />
         </section>
 
         <aside className="panel panel-right">
