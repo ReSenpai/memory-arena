@@ -32,6 +32,8 @@ export type GameStore = {
   finishReason: FinishReason
   /** Целевое количество тиков для текущего уровня */
   targetTicks: number
+  /** Порог утечки (тиков) */
+  leakThreshold: number
 
   // --- Actions ---
   startGame: (levelId: number) => void
@@ -70,6 +72,7 @@ function syncFromSession(
     levelId,
     finishReason: snap.finishReason,
     targetTicks: snap.targetTicks,
+    leakThreshold: snap.leakThreshold,
   })
 }
 
@@ -95,6 +98,7 @@ export function createGameStore() {
     lastError: null,
     finishReason: null,
     targetTicks: 0,
+    leakThreshold: 30,
 
     // --- Actions ---
 

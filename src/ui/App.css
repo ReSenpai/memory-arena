@@ -122,6 +122,18 @@ html, body, #root {
   border-radius: 6px;
   background: #1a1d27;
   border: 1px solid #2a2d3a;
+  animation: request-slide-in 0.25s ease-out;
+}
+
+@keyframes request-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .request-allocate {
@@ -428,4 +440,97 @@ html, body, #root {
   font-size: 0.9rem;
   font-weight: 500;
   margin-top: 4px;
+}
+
+/* === Stability Bar === */
+.stability-bar-container {
+  height: 8px;
+  background: #1e2130;
+  border-radius: 4px;
+  margin: 4px 0 8px;
+  overflow: hidden;
+}
+
+.stability-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease, background 0.4s ease;
+}
+
+/* === Responsive: планшет (≤ 900px) → панели сужаются === */
+@media (max-width: 900px) {
+  .panel-left {
+    width: 180px;
+  }
+
+  .panel-right {
+    width: 240px;
+  }
+
+  .overlay-card {
+    padding: 24px 28px;
+    min-width: 280px;
+  }
+
+  .overlay-stats {
+    gap: 20px;
+  }
+}
+
+/* === Responsive: мобильный (≤ 640px) → вертикальный стек === */
+@media (max-width: 640px) {
+  .app-header {
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 16px;
+  }
+
+  .app-main {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .panel-left,
+  .panel-right {
+    width: 100%;
+    border-right: none;
+    border-left: none;
+    border-bottom: 1px solid #2a2d3a;
+  }
+
+  .panel-center {
+    min-height: 300px;
+  }
+
+  .panel {
+    padding: 12px;
+  }
+
+  .overlay-card {
+    padding: 20px;
+    min-width: auto;
+    margin: 16px;
+  }
+
+  .overlay-stat-value {
+    font-size: 1.2rem;
+  }
+
+  .error-notification {
+    left: 16px;
+    right: 16px;
+    transform: none;
+    bottom: 16px;
+  }
+
+  @keyframes error-slide-in {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }

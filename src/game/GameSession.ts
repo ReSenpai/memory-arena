@@ -28,6 +28,7 @@ export type SessionSnapshot = {
   state: SessionState
   finishReason: FinishReason
   targetTicks: number
+  leakThreshold: number
 }
 
 /**
@@ -204,6 +205,7 @@ export class GameSession {
       state: this.state,
       finishReason: this.finishReason,
       targetTicks: this.config.targetTicks,
+      leakThreshold: this.config.leakThreshold,
     }
   }
 

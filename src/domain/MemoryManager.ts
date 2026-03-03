@@ -100,7 +100,7 @@ export class MemoryManager {
   }
 
   getBlocks(): ReadonlyArray<MemoryBlock> {
-    return this.blocks
+    return this.blocks.map((b) => ({ ...b }))
   }
 
   /**

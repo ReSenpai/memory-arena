@@ -23,6 +23,10 @@ const FLASH_ALLOCATE = 'rgba(88, 166, 255, 0.6)'
 const FLASH_FREE = 'rgba(35, 134, 54, 0.6)'
 /** Длительность вспышки (мс) */
 const FLASH_DURATION_MS = 400
+/** Цвет рамки для блока-утечки */
+const LEAK_BORDER = '#f85149'
+/** Порог (доля от leakThreshold) для предупреждения */
+const LEAK_WARNING_RATIO = 0.7
 
 /** Высота одной полоски блока */
 const BLOCK_HEIGHT = 48
@@ -109,6 +113,8 @@ export function MemoryCanvas({
   const blocks = useGameStore((s) => s.blocks)
   const metrics = useGameStore((s) => s.metrics)
   const sessionState = useGameStore((s) => s.sessionState)
+  const currentTick = useGameStore((s) => s.currentTick)
+  const leakThreshold = useGameStore((s) => s.leakThreshold)
 
   /** Общий размер памяти (для масштабирования) */
   const totalSize = metrics?.totalSize ?? 0
@@ -239,10 +245,35 @@ export function MemoryCanvas({
         }
 
         // Рамка
-        ctx.strokeStyle =
-          block.id === selectedBlockId ? SELECTED_BORDER : BLOCK_BORDER
-        ctx.lineWidth = block.id === selectedBlockId ? 2 : 1
-        ctx.strokeRect(x, y, w, h)
+        const isLeaking =
+          block.state === 'allocated' &&
+          block.allocatedAtTick !== undefined &&
+          currentTick - block.allocatedAtTick > leakThreshold
+
+        const isWarning =
+          !isLeaking &&
+          block.state === 'allocated' &&
+          block.allocatedAtTick !== undefined &&
+          currentTick - block.allocatedAtTick >
+            leakThreshold * LEAK_WARNING_RATIO
+
+        if (isLeaking) {
+          // Красная пульсирующая рамка для утечки
+          const pulse = 0.5 + 0.5 * Math.sin(now / 200)
+          ctx.strokeStyle = LEAK_BORDER
+          ctx.lineWidth = 2 + pulse
+          ctx.strokeRect(x, y, w, h)
+        } else if (isWarning) {
+          // Оранжевая рамка как предупреждение
+          ctx.strokeStyle = '#f0883e'
+          ctx.lineWidth = 2
+          ctx.strokeRect(x, y, w, h)
+        } else {
+          ctx.strokeStyle =
+            block.id === selectedBlockId ? SELECTED_BORDER : BLOCK_BORDER
+          ctx.lineWidth = block.id === selectedBlockId ? 2 : 1
+          ctx.strokeRect(x, y, w, h)
+        }
 
         // Зелёная линия сверху для free
         if (block.state === 'free') {
@@ -292,7 +323,7 @@ export function MemoryCanvas({
         legendX += 40
       }
     },
-    [blocks, totalSize, selectedBlockId, sessionState],
+    [blocks, totalSize, selectedBlockId, sessionState, currentTick, leakThreshold],
   )
 
   // Перерисовка при изменении данных
@@ -300,13 +331,17 @@ export function MemoryCanvas({
     draw(performance.now())
   }, [draw])
 
-  // Анимационный цикл для flash-эффектов
+  // Анимационный цикл для flash-эффектов и пульсации утечек
   useEffect(() => {
     let active = true
 
     function loop() {
       if (!active) return
-      if (flashesRef.current.length > 0) {
+      // Перерисовываем если есть вспышки или идёт игра (для пульсации утечек)
+      if (
+        flashesRef.current.length > 0 ||
+        sessionState === 'playing'
+      ) {
         draw(performance.now())
       }
       flashRafRef.current = requestAnimationFrame(loop)
@@ -320,7 +355,7 @@ export function MemoryCanvas({
         cancelAnimationFrame(flashRafRef.current)
       }
     }
-  }, [draw])
+  }, [draw, sessionState])
 
   // ResizeObserver для адаптивности
   useEffect(() => {

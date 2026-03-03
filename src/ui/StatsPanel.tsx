@@ -27,6 +27,15 @@ export function StatsPanel() {
           {(stability * 100).toFixed(0)}%
         </span>
       </div>
+      <div className="stability-bar-container">
+        <div
+          className="stability-bar-fill"
+          style={{
+            width: `${Math.max(0, stability * 100)}%`,
+            background: stabilityColor,
+          }}
+        />
+      </div>
 
       <div className="stat-row">
         <span className="stat-label">Прогресс</span>
