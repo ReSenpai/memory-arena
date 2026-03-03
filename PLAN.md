@@ -129,12 +129,17 @@
 
 ---
 
-## Checkpoint 10: Zustand Store
-- [ ] Создать `gameStore` с состоянием: blocks, requests, score, level, gameState
-- [ ] Actions: startGame, allocate, free, tick, pause, resume
-- [ ] Тест: actions корректно обновляют состояние
+## Checkpoint 10: Zustand Store ✅
+- [x] Установить `zustand` v5
+- [x] **RED:** Тесты — начальное состояние (idle, tick=0, пустые данные)
+- [x] **RED:** Тесты — `startGame(levelId)` переводит в playing, инициализирует snapshot
+- [x] **RED:** Тесты — `doTick()` увеличивает тик, не работает вне playing
+- [x] **RED:** Тесты — `allocate()` / `free()` обновляют score, убирают запрос
+- [x] **RED:** Тесты — `pause()` / `resume()` переключают состояние
+- [x] **GREEN:** Реализовать `gameStore` с `createStore` (vanilla) + `syncFromSession`
+- [x] Добавить React-хук `useGameStore` с selector-поддержкой
 
-**Результат:** store связывает domain/game с будущим UI.
+**Результат:** store связывает domain/game с будущим UI (11 тестов).
 
 ---
 
