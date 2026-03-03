@@ -90,13 +90,16 @@
 
 ---
 
-## Checkpoint 7: RequestGenerator и LevelManager
-- [ ] **RED:** Тест — `RequestGenerator` генерирует запросы с заданной частотой
-- [ ] **GREEN:** Реализовать генератор с seed-based random (детерминированный для тестов)
-- [ ] **RED:** Тест — `LevelManager` возвращает конфиг уровня (memorySize, requestRate, etc.)
-- [ ] **GREEN:** Реализовать конфиги для 5 уровней
+## Checkpoint 7: RequestGenerator и LevelManager ✅
+- [x] Создать `src/game/types.ts` с типом `LevelConfig`
+- [x] **RED:** Тесты — `getLevelConfig()` возвращает конфиг по номеру, бросает ошибку для невалидных
+- [x] **RED:** Тесты — `getAllLevels()` возвращает 5 конфигов, сложность растёт
+- [x] **GREEN:** Реализовать `LevelManager` с конфигами 5 уровней
+- [x] **RED:** Тесты — `RequestGenerator` генерирует запросы по интервалу, детерминированный seed
+- [x] **RED:** Тесты — allocate (без блоков), free (с блоками), уникальные id
+- [x] **GREEN:** Реализовать `SeededRandom` (LCG) и `RequestGenerator`
 
-**Результат:** game-слой может генерировать запросы и управлять сложностью.
+**Результат:** game-слой может генерировать запросы и управлять сложностью (15 тестов).
 
 ---
 
