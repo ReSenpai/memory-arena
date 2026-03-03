@@ -72,6 +72,27 @@ export class MemoryManager {
     return { success: true, block }
   }
 
+  /**
+   * Объединяет соседние свободные блоки в один.
+   * Проходит массив слева направо: если текущий и следующий оба free — сливаем.
+   */
+  mergeFreeBlocks(): void {
+    let i = 0
+    while (i < this.blocks.length - 1) {
+      const current = this.blocks[i]
+      const next = this.blocks[i + 1]
+
+      if (current.state === 'free' && next.state === 'free') {
+        // Объединяем: расширяем текущий, удаляем следующий
+        current.size += next.size
+        this.blocks.splice(i + 1, 1)
+        // Не двигаем i — проверяем дальше (каскадное объединение)
+      } else {
+        i++
+      }
+    }
+  }
+
   getBlocks(): ReadonlyArray<MemoryBlock> {
     return this.blocks
   }

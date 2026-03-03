@@ -131,4 +131,92 @@ describe('MemoryManager', () => {
       expect(result.reason).toBe('not-found')
     })
   })
+
+  describe('mergeFreeBlocks', () => {
+    it('объединяет два соседних свободных блока в один', () => {
+      const mm = new MemoryManager(64)
+      // Выделяем два блока подряд
+      const r1 = mm.allocate(16, 'p1')
+      const r2 = mm.allocate(16, 'p2')
+      if (!r1.success || !r2.success) throw new Error('аллокация не удалась')
+
+      // Освобождаем оба — теперь [free:16][free:16][free:32]
+      mm.free(r1.block.id)
+      mm.free(r2.block.id)
+
+      mm.mergeFreeBlocks()
+
+      // Должен быть один свободный блок на всю память
+      const blocks = mm.getBlocks()
+      expect(blocks).toHaveLength(1)
+      expect(blocks[0].state).toBe('free')
+      expect(blocks[0].start).toBe(0)
+      expect(blocks[0].size).toBe(64)
+    })
+
+    it('объединяет три свободных блока подряд', () => {
+      const mm = new MemoryManager(48)
+      const r1 = mm.allocate(16, 'p1')
+      const r2 = mm.allocate(16, 'p2')
+      const r3 = mm.allocate(16, 'p3')
+      if (!r1.success || !r2.success || !r3.success)
+        throw new Error('аллокация не удалась')
+
+      // Освобождаем все три
+      mm.free(r1.block.id)
+      mm.free(r2.block.id)
+      mm.free(r3.block.id)
+
+      mm.mergeFreeBlocks()
+
+      const blocks = mm.getBlocks()
+      expect(blocks).toHaveLength(1)
+      expect(blocks[0].size).toBe(48)
+    })
+
+    it('не объединяет блоки, разделённые allocated блоком', () => {
+      const mm = new MemoryManager(48)
+      const r1 = mm.allocate(16, 'p1')
+      const r2 = mm.allocate(16, 'p2')
+      if (!r1.success || !r2.success) throw new Error('аллокация не удалась')
+      // [alloc:16][alloc:16][free:16]
+
+      // Освобождаем только первый — [free:16][alloc:16][free:16]
+      mm.free(r1.block.id)
+
+      mm.mergeFreeBlocks()
+
+      // Два свободных блока не должны слиться — между ними occupied
+      const blocks = mm.getBlocks()
+      const freeBlocks = blocks.filter((b) => b.state === 'free')
+      expect(freeBlocks).toHaveLength(2)
+      expect(freeBlocks[0].size).toBe(16)
+      expect(freeBlocks[1].size).toBe(16)
+    })
+
+    it('объединяет только соседние свободные, оставляя allocated между ними', () => {
+      const mm = new MemoryManager(64)
+      const r1 = mm.allocate(16, 'p1')
+      const r2 = mm.allocate(16, 'p2')
+      const r3 = mm.allocate(16, 'p3')
+      if (!r1.success || !r2.success || !r3.success)
+        throw new Error('аллокация не удалась')
+      // [alloc:16][alloc:16][alloc:16][free:16]
+
+      // Освобождаем 1 и 3 — [free:16][alloc:16][free:16][free:16]
+      mm.free(r1.block.id)
+      mm.free(r3.block.id)
+
+      mm.mergeFreeBlocks()
+
+      // Блоки 3 и хвостовой free должны слиться, блок 1 — отдельно
+      const blocks = mm.getBlocks()
+      expect(blocks).toHaveLength(3)
+      expect(blocks[0].state).toBe('free')
+      expect(blocks[0].size).toBe(16)
+      expect(blocks[1].state).toBe('allocated')
+      expect(blocks[2].state).toBe('free')
+      expect(blocks[2].size).toBe(32) // 16 + 16 слились
+    })
+  })
 })
