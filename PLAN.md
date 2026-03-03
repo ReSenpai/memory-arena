@@ -143,13 +143,14 @@
 
 ---
 
-## Checkpoint 11: Базовый UI — Layout
-- [ ] Создать `App.tsx` с тремя панелями (stats, memory, requests)
-- [ ] StatsPanel показывает: score, free memory, fragmentation %
-- [ ] RequestQueue показывает список запросов
-- [ ] GameControls: кнопки Start, Pause
+## Checkpoint 11: Базовый UI — Layout ✅
+- [x] Создать `StatsPanel` — score, stability, тик, свободная память, фрагментация, блоки
+- [x] Создать `RequestQueue` — список pending-запросов с кнопками Выделить/Освободить
+- [x] Создать `GameControls` — кнопки Старт/Пауза/Продолжить/Заново по состоянию
+- [x] Обновить `App.tsx` — трёхпанельный layout (stats | memory | requests)
+- [x] Создать `App.css` — тёмная тема, CSS grid layout
 
-**Результат:** каркас UI отображает данные из store.
+**Результат:** каркас UI отображает данные из store, готов к Canvas-визуализации.
 
 ---
 
