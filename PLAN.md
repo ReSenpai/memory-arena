@@ -5,34 +5,37 @@
 
 ---
 
-## Checkpoint 0: Инициализация проекта
-- [ ] Инициализировать Vite + React + TypeScript
-- [ ] Настроить strict mode в tsconfig
-- [ ] Установить и настроить Vitest
-- [ ] Создать структуру папок (domain/, game/, store/, ui/, __tests__/)
-- [ ] Написать первый smoke-тест: `expect(true).toBe(true)`
-- [ ] Убедиться, что `npm test` и `npm run dev` работают
+## Checkpoint 0: Инициализация проекта ✅
+- [x] Инициализировать Vite + React + TypeScript
+- [x] Настроить strict mode в tsconfig
+- [x] Установить и настроить Vitest
+- [x] Создать структуру папок (domain/, game/, store/, ui/, __tests__/)
+- [x] Написать первый smoke-тест: `expect(true).toBe(true)`
+- [x] Убедиться, что `pnpm test` и `pnpm dev` работают
+- [x] Добавить ESLint 9 + Prettier
 
-**Результат:** пустой проект, тесты запускаются, dev-сервер стартует.
+**Результат:** пустой проект, тесты запускаются, dev-сервер стартует, lint/format работают.
 
 ---
 
-## Checkpoint 1: Типы и модель памяти
-- [ ] Создать `src/domain/types.ts` с типами `MemoryBlock`, `AllocationRequest`, `FreeRequest`
-- [ ] Тест: типы корректно описывают структуру (компиляция = тест)
+## Checkpoint 1: Типы и модель памяти ✅
+- [x] Создать `src/domain/types.ts` с типами `MemoryBlock`, `AllocationRequest`, `FreeRequest`
+- [x] Добавлены `AllocationResult`, `FreeResult` (discriminated unions с причиной ошибки)
+- [x] Добавлены `MemoryRequest` (tagged union), `MemoryMetrics`
+- [x] Компиляция + lint проходят
 
 **Результат:** типовая система — фундамент для всего domain-слоя.
 
 ---
 
-## Checkpoint 2: MemoryManager — allocate
-- [ ] **RED:** Тест — `MemoryManager` создаётся с заданным размером памяти
-- [ ] **GREEN:** Реализовать конструктор `MemoryManager(totalSize)`
-- [ ] **RED:** Тест — `allocate(size)` возвращает блок с правильным start и size
-- [ ] **GREEN:** Реализовать `allocate` (First Fit)
-- [ ] **RED:** Тест — `allocate` при нехватке памяти возвращает `null`
-- [ ] **GREEN:** Обработать edge case
-- [ ] **REFACTOR:** Вынести First Fit в отдельный `Allocator.ts`
+## Checkpoint 2: MemoryManager — allocate &#x2705;
+- [x] **RED:** Тест — `MemoryManager` создаётся с заданным размером памяти
+- [x] **GREEN:** Реализовать конструктор `MemoryManager(totalSize)`
+- [x] **RED:** Тест — `allocate(size)` возвращает блок с правильным start и size
+- [x] **GREEN:** Реализовать `allocate` (First Fit)
+- [x] **RED:** Тест — `allocate` при нехватке памяти возвращает `{ success: false, reason: 'no-fit' }`
+- [x] **GREEN:** Обработать edge case (уже работало)
+- [x] **REFACTOR:** Вынести First Fit в отдельный `Allocator.ts` (интерфейс `AllocatorStrategy`)
 
 **Результат:** можно аллоцировать блоки памяти, стратегия выделена в отдельный модуль.
 

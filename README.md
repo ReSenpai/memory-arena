@@ -3,12 +3,14 @@
 ## Стек
 
 - **Language:** TypeScript (strict mode)
-- **UI Framework:** React 18
+- **UI Framework:** React 19
 - **State:** Zustand
 - **Rendering:** Canvas 2D API (позже можно PixiJS)
 - **Game loop:** `requestAnimationFrame`
 - **Testing:** Vitest
+- **Linting:** ESLint 9 (flat config) + Prettier
 - **Build:** Vite
+- **Package manager:** pnpm
 
 ---
 
