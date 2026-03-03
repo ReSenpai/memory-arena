@@ -99,3 +99,4 @@ src/
 ## 📄 Лицензия
 
 MIT
+Deploy Trigger

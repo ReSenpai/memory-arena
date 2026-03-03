@@ -624,6 +624,26 @@ html, body, #root {
   line-height: 1.6;
   font-size: 0.88rem;
   color: #ccc;
+  scrollbar-width: thin;
+  scrollbar-color: #2a2d3a #14161e;
+}
+
+.help-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.help-body::-webkit-scrollbar-track {
+  background: #14161e;
+  border-radius: 4px;
+}
+
+.help-body::-webkit-scrollbar-thumb {
+  background: #2a2d3a;
+  border-radius: 4px;
+}
+
+.help-body::-webkit-scrollbar-thumb:hover {
+  background: #3a3d4a;
 }
 
 .help-section {
