@@ -103,15 +103,17 @@
 
 ---
 
-## Checkpoint 8: GameSession
-- [ ] **RED:** Тест — `GameSession` связывает MemoryManager + RequestGenerator + Scorer
-- [ ] **GREEN:** Реализовать GameSession как фасад
-- [ ] **RED:** Тест — `session.tick()` продвигает время, генерирует запросы
-- [ ] **GREEN:** Реализовать tick-based обновление
-- [ ] **RED:** Тест — `session.allocate()` / `session.free()` обновляют состояние и score
-- [ ] **GREEN:** Реализовать player actions
+## Checkpoint 8: GameSession ✅
+- [x] **RED:** Тесты — создание, начальное состояние (idle, tick=0, пустая очередь)
+- [x] **RED:** Тесты — start/pause/resume/finish переключают состояние
+- [x] **RED:** Тесты — tick увеличивает тик, генерирует запросы, не работает в idle/paused/finished
+- [x] **RED:** Тесты — allocate по id запроса из очереди, начисление очков, удаление из очереди
+- [x] **RED:** Тесты — free по id запроса, начисление очков, merge после free
+- [x] **RED:** Тесты — детекция утечек штрафует stability
+- [x] **RED:** Тесты — getSnapshot() возвращает полный снимок
+- [x] **GREEN:** Реализовать GameSession как фасад (MemoryManager + RequestGenerator + Scorer + ErrorDetector)
 
-**Результат:** вся игровая логика работает без UI, чисто через тесты.
+**Результат:** вся игровая логика работает без UI, чисто через тесты (22 теста).
 
 ---
 
