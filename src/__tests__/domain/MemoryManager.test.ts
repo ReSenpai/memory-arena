@@ -219,4 +219,57 @@ describe('MemoryManager', () => {
       expect(blocks[2].size).toBe(32) // 16 + 16 слились
     })
   })
+
+  describe('getMetrics', () => {
+    it('возвращает метрики для пустой памяти', () => {
+      const mm = new MemoryManager(64)
+      const metrics = mm.getMetrics()
+
+      expect(metrics.totalSize).toBe(64)
+      expect(metrics.usedSize).toBe(0)
+      expect(metrics.freeSize).toBe(64)
+      expect(metrics.fragmentation).toBe(0)
+      expect(metrics.blockCount).toBe(1)
+    })
+
+    it('возвращает метрики после аллокации', () => {
+      const mm = new MemoryManager(64)
+      mm.allocate(16, 'p1')
+      mm.allocate(8, 'p2')
+
+      const metrics = mm.getMetrics()
+
+      expect(metrics.totalSize).toBe(64)
+      expect(metrics.usedSize).toBe(24)
+      expect(metrics.freeSize).toBe(40)
+      expect(metrics.blockCount).toBe(3) // [alloc:16][alloc:8][free:40]
+    })
+
+    it('считает фрагментацию для разрозненных свободных блоков', () => {
+      const mm = new MemoryManager(48)
+      const r1 = mm.allocate(16, 'p1')
+      mm.allocate(16, 'p2')
+      if (!r1.success) throw new Error('аллокация не удалась')
+
+      // [alloc:16][alloc:16][free:16]
+      mm.free(r1.block.id)
+      // [free:16][alloc:16][free:16]
+
+      const metrics = mm.getMetrics()
+
+      // Фрагментация: 1 - (наибольший свободный / общий свободный)
+      // Свободно 32, наибольший свободный = 16 → fragmentation = 1 - 16/32 = 0.5
+      expect(metrics.freeSize).toBe(32)
+      expect(metrics.fragmentation).toBe(0.5)
+    })
+
+    it('фрагментация = 0 когда вся свободная память в одном блоке', () => {
+      const mm = new MemoryManager(64)
+      mm.allocate(16, 'p1')
+      // [alloc:16][free:48] — один свободный блок
+
+      const metrics = mm.getMetrics()
+      expect(metrics.fragmentation).toBe(0)
+    })
+  })
 })

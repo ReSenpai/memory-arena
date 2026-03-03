@@ -18,6 +18,8 @@ export type MemoryBlock = {
   state: BlockState
   /** ID программы-владельца (только для allocated) */
   programId?: string
+  /** Тик, на котором блок был аллоцирован (для детектора утечек) */
+  allocatedAtTick?: number
 }
 
 /**

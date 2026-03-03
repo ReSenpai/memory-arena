@@ -64,12 +64,15 @@
 
 ---
 
-## Checkpoint 5: Метрики и ErrorDetector
-- [ ] **RED:** Тест — `getFragmentation()` возвращает 0 для пустой памяти
-- [ ] **RED:** Тест — `getFragmentation()` считает правильно для фрагментированной памяти
-- [ ] **GREEN:** Реализовать расчёт фрагментации
-- [ ] **RED:** Тест — `ErrorDetector.checkLeak()` находит блоки, аллоцированные дольше N тиков
-- [ ] **GREEN:** Реализовать детектор утечек
+## Checkpoint 5: Метрики и ErrorDetector &#x2705;
+- [x] **RED:** Тест — `getMetrics()` возвращает корректные метрики для пустой памяти
+- [x] **RED:** Тест — `getMetrics()` считает usedSize/freeSize после аллокации
+- [x] **RED:** Тест — фрагментация считается по формуле `1 - maxFree/totalFree`
+- [x] **RED:** Тест — фрагментация = 0 при одном свободном блоке
+- [x] **GREEN:** Реализовать `getMetrics(): MemoryMetrics`
+- [x] **RED:** Тесты — `detectLeaks()` находит/не находит утечки по порогу тиков
+- [x] **GREEN:** Реализовать `detectLeaks()` как чистую функцию
+- [x] Добавлено поле `allocatedAtTick` в `MemoryBlock`
 
 **Результат:** domain-слой полностью готов: allocate, free, merge, метрики, ошибки.
 

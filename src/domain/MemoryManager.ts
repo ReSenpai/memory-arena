@@ -1,6 +1,11 @@
 import type { AllocatorStrategy } from './Allocator'
 import { firstFit } from './Allocator'
-import type { AllocationResult, FreeResult, MemoryBlock } from './types'
+import type {
+  AllocationResult,
+  FreeResult,
+  MemoryBlock,
+  MemoryMetrics,
+} from './types'
 
 export class MemoryManager {
   private blocks: MemoryBlock[]
@@ -19,7 +24,7 @@ export class MemoryManager {
     this.strategy = strategy
   }
 
-  allocate(size: number, programId: string): AllocationResult {
+  allocate(size: number, programId: string, tick?: number): AllocationResult {
     const index = this.strategy.findFreeBlock(this.blocks, size)
 
     if (index === -1) {
@@ -35,6 +40,7 @@ export class MemoryManager {
       size,
       state: 'allocated',
       programId,
+      allocatedAtTick: tick,
     }
 
     if (freeBlock.size === size) {
@@ -95,5 +101,31 @@ export class MemoryManager {
 
   getBlocks(): ReadonlyArray<MemoryBlock> {
     return this.blocks
+  }
+
+  /**
+   * Вычисляет метрики текущего состояния памяти.
+   * Фрагментация = 1 - (наибольший свободный блок / общий свободный размер).
+   * Если свободный только один блок или памяти нет — фрагментация = 0.
+   */
+  getMetrics(): MemoryMetrics {
+    const totalSize = this.blocks.reduce((sum, b) => sum + b.size, 0)
+    const freeBlocks = this.blocks.filter((b) => b.state === 'free')
+    const freeSize = freeBlocks.reduce((sum, b) => sum + b.size, 0)
+    const usedSize = totalSize - freeSize
+
+    let fragmentation = 0
+    if (freeBlocks.length > 1) {
+      const largestFree = Math.max(...freeBlocks.map((b) => b.size))
+      fragmentation = 1 - largestFree / freeSize
+    }
+
+    return {
+      totalSize,
+      usedSize,
+      freeSize,
+      fragmentation,
+      blockCount: this.blocks.length,
+    }
   }
 }
