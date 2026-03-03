@@ -5,171 +5,194 @@
 
 ---
 
-## Checkpoint 0: Инициализация проекта
-- [ ] Инициализировать Vite + React + TypeScript
-- [ ] Настроить strict mode в tsconfig
-- [ ] Установить и настроить Vitest
-- [ ] Создать структуру папок (domain/, game/, store/, ui/, __tests__/)
-- [ ] Написать первый smoke-тест: `expect(true).toBe(true)`
-- [ ] Убедиться, что `npm test` и `npm run dev` работают
+## Checkpoint 0: Инициализация проекта ✅
+- [x] Инициализировать Vite + React + TypeScript
+- [x] Настроить strict mode в tsconfig
+- [x] Установить и настроить Vitest
+- [x] Создать структуру папок (domain/, game/, store/, ui/, __tests__/)
+- [x] Написать первый smoke-тест: `expect(true).toBe(true)`
+- [x] Убедиться, что `pnpm test` и `pnpm dev` работают
+- [x] Добавить ESLint 9 + Prettier
 
-**Результат:** пустой проект, тесты запускаются, dev-сервер стартует.
+**Результат:** пустой проект, тесты запускаются, dev-сервер стартует, lint/format работают.
 
 ---
 
-## Checkpoint 1: Типы и модель памяти
-- [ ] Создать `src/domain/types.ts` с типами `MemoryBlock`, `AllocationRequest`, `FreeRequest`
-- [ ] Тест: типы корректно описывают структуру (компиляция = тест)
+## Checkpoint 1: Типы и модель памяти ✅
+- [x] Создать `src/domain/types.ts` с типами `MemoryBlock`, `AllocationRequest`, `FreeRequest`
+- [x] Добавлены `AllocationResult`, `FreeResult` (discriminated unions с причиной ошибки)
+- [x] Добавлены `MemoryRequest` (tagged union), `MemoryMetrics`
+- [x] Компиляция + lint проходят
 
 **Результат:** типовая система — фундамент для всего domain-слоя.
 
 ---
 
-## Checkpoint 2: MemoryManager — allocate
-- [ ] **RED:** Тест — `MemoryManager` создаётся с заданным размером памяти
-- [ ] **GREEN:** Реализовать конструктор `MemoryManager(totalSize)`
-- [ ] **RED:** Тест — `allocate(size)` возвращает блок с правильным start и size
-- [ ] **GREEN:** Реализовать `allocate` (First Fit)
-- [ ] **RED:** Тест — `allocate` при нехватке памяти возвращает `null`
-- [ ] **GREEN:** Обработать edge case
-- [ ] **REFACTOR:** Вынести First Fit в отдельный `Allocator.ts`
+## Checkpoint 2: MemoryManager — allocate &#x2705;
+- [x] **RED:** Тест — `MemoryManager` создаётся с заданным размером памяти
+- [x] **GREEN:** Реализовать конструктор `MemoryManager(totalSize)`
+- [x] **RED:** Тест — `allocate(size)` возвращает блок с правильным start и size
+- [x] **GREEN:** Реализовать `allocate` (First Fit)
+- [x] **RED:** Тест — `allocate` при нехватке памяти возвращает `{ success: false, reason: 'no-fit' }`
+- [x] **GREEN:** Обработать edge case (уже работало)
+- [x] **REFACTOR:** Вынести First Fit в отдельный `Allocator.ts` (интерфейс `AllocatorStrategy`)
 
 **Результат:** можно аллоцировать блоки памяти, стратегия выделена в отдельный модуль.
 
 ---
 
-## Checkpoint 3: MemoryManager — free
-- [ ] **RED:** Тест — `free(blockId)` переводит блок в состояние `'free'`
-- [ ] **GREEN:** Реализовать `free`
-- [ ] **RED:** Тест — `free` на уже свободном блоке выбрасывает ошибку (double free)
-- [ ] **GREEN:** Обработать double free
-- [ ] **RED:** Тест — `free` на несуществующем блоке выбрасывает ошибку
-- [ ] **GREEN:** Обработать edge case
+## Checkpoint 3: MemoryManager — free &#x2705;
+- [x] **RED:** Тест — `free(blockId)` переводит блок в состояние `'free'`
+- [x] **GREEN:** Реализовать `free`
+- [x] **RED:** Тест — `free` на уже свободном блоке возвращает `{ success: false, reason: 'double-free' }`
+- [x] **GREEN:** Обработать double free
+- [x] **RED:** Тест — `free` на несуществующем блоке возвращает `{ success: false, reason: 'not-found' }`
+- [x] **GREEN:** Обработать edge case
 
 **Результат:** полный цикл allocate/free работает с обработкой ошибок.
 
 ---
 
-## Checkpoint 4: Merge свободных блоков
-- [ ] **RED:** Тест — два соседних свободных блока объединяются в один
-- [ ] **GREEN:** Реализовать `mergeFreeBlocks()`
-- [ ] **RED:** Тест — три подряд свободных блока объединяются
-- [ ] **GREEN:** Обработать каскадное объединение
-- [ ] **RED:** Тест — не объединяются, если между ними allocated блок
-- [ ] **GREEN:** Проверить граничный случай
+## Checkpoint 4: Merge свободных блоков &#x2705;
+- [x] **RED:** Тест — два соседних свободных блока объединяются в один
+- [x] **RED:** Тест — три подряд свободных блока объединяются (каскад)
+- [x] **RED:** Тест — не объединяются, если между ними allocated блок
+- [x] **RED:** Тест — частичное слияние (только соседние free, allocated остаётся)
+- [x] **GREEN:** Реализовать `mergeFreeBlocks()` — цикл while с каскадным объединением
 
 **Результат:** фрагментация уменьшается при освобождении.
 
 ---
 
-## Checkpoint 5: Метрики и ErrorDetector
-- [ ] **RED:** Тест — `getFragmentation()` возвращает 0 для пустой памяти
-- [ ] **RED:** Тест — `getFragmentation()` считает правильно для фрагментированной памяти
-- [ ] **GREEN:** Реализовать расчёт фрагментации
-- [ ] **RED:** Тест — `ErrorDetector.checkLeak()` находит блоки, аллоцированные дольше N тиков
-- [ ] **GREEN:** Реализовать детектор утечек
+## Checkpoint 5: Метрики и ErrorDetector &#x2705;
+- [x] **RED:** Тест — `getMetrics()` возвращает корректные метрики для пустой памяти
+- [x] **RED:** Тест — `getMetrics()` считает usedSize/freeSize после аллокации
+- [x] **RED:** Тест — фрагментация считается по формуле `1 - maxFree/totalFree`
+- [x] **RED:** Тест — фрагментация = 0 при одном свободном блоке
+- [x] **GREEN:** Реализовать `getMetrics(): MemoryMetrics`
+- [x] **RED:** Тесты — `detectLeaks()` находит/не находит утечки по порогу тиков
+- [x] **GREEN:** Реализовать `detectLeaks()` как чистую функцию
+- [x] Добавлено поле `allocatedAtTick` в `MemoryBlock`
 
 **Результат:** domain-слой полностью готов: allocate, free, merge, метрики, ошибки.
 
 ---
 
-## Checkpoint 6: Scorer
-- [ ] **RED:** Тест — начальный score = 0
-- [ ] **RED:** Тест — успешный allocate даёт +N очков
-- [ ] **RED:** Тест — leak снижает score
-- [ ] **RED:** Тест — double free обнуляет stability
-- [ ] **GREEN:** Реализовать `Scorer`
+## Checkpoint 6: Scorer ✅
+- [x] **RED:** Тест — начальный score = 0, stability = 1
+- [x] **RED:** Тест — успешный allocate даёт +10 за ячейку, free +5
+- [x] **RED:** Тест — leak снижает score на 20 и stability на 0.1
+- [x] **RED:** Тест — double free обнуляет stability, −50 очков
+- [x] **RED:** Тест — getSummary() возвращает текущие значения
+- [x] **GREEN:** Реализовать `Scorer` как класс с методами-событиями
 
-**Результат:** система оценки полностью тестируема и работает.
-
----
-
-## Checkpoint 7: RequestGenerator и LevelManager
-- [ ] **RED:** Тест — `RequestGenerator` генерирует запросы с заданной частотой
-- [ ] **GREEN:** Реализовать генератор с seed-based random (детерминированный для тестов)
-- [ ] **RED:** Тест — `LevelManager` возвращает конфиг уровня (memorySize, requestRate, etc.)
-- [ ] **GREEN:** Реализовать конфиги для 5 уровней
-
-**Результат:** game-слой может генерировать запросы и управлять сложностью.
+**Результат:** система оценки полностью тестируема и работает (11 тестов).
 
 ---
 
-## Checkpoint 8: GameSession
-- [ ] **RED:** Тест — `GameSession` связывает MemoryManager + RequestGenerator + Scorer
-- [ ] **GREEN:** Реализовать GameSession как фасад
-- [ ] **RED:** Тест — `session.tick()` продвигает время, генерирует запросы
-- [ ] **GREEN:** Реализовать tick-based обновление
-- [ ] **RED:** Тест — `session.allocate()` / `session.free()` обновляют состояние и score
-- [ ] **GREEN:** Реализовать player actions
+## Checkpoint 7: RequestGenerator и LevelManager ✅
+- [x] Создать `src/game/types.ts` с типом `LevelConfig`
+- [x] **RED:** Тесты — `getLevelConfig()` возвращает конфиг по номеру, бросает ошибку для невалидных
+- [x] **RED:** Тесты — `getAllLevels()` возвращает 5 конфигов, сложность растёт
+- [x] **GREEN:** Реализовать `LevelManager` с конфигами 5 уровней
+- [x] **RED:** Тесты — `RequestGenerator` генерирует запросы по интервалу, детерминированный seed
+- [x] **RED:** Тесты — allocate (без блоков), free (с блоками), уникальные id
+- [x] **GREEN:** Реализовать `SeededRandom` (LCG) и `RequestGenerator`
 
-**Результат:** вся игровая логика работает без UI, чисто через тесты.
-
----
-
-## Checkpoint 9: GameLoop
-- [ ] Реализовать `GameLoop` с `requestAnimationFrame`
-- [ ] Добавить pause/resume
-- [ ] Тест (с мок-таймером): loop вызывает `session.tick()` с правильным dt
-
-**Результат:** игра может "тикать" в реальном времени.
+**Результат:** game-слой может генерировать запросы и управлять сложностью (15 тестов).
 
 ---
 
-## Checkpoint 10: Zustand Store
-- [ ] Создать `gameStore` с состоянием: blocks, requests, score, level, gameState
-- [ ] Actions: startGame, allocate, free, tick, pause, resume
-- [ ] Тест: actions корректно обновляют состояние
+## Checkpoint 8: GameSession ✅
+- [x] **RED:** Тесты — создание, начальное состояние (idle, tick=0, пустая очередь)
+- [x] **RED:** Тесты — start/pause/resume/finish переключают состояние
+- [x] **RED:** Тесты — tick увеличивает тик, генерирует запросы, не работает в idle/paused/finished
+- [x] **RED:** Тесты — allocate по id запроса из очереди, начисление очков, удаление из очереди
+- [x] **RED:** Тесты — free по id запроса, начисление очков, merge после free
+- [x] **RED:** Тесты — детекция утечек штрафует stability
+- [x] **RED:** Тесты — getSnapshot() возвращает полный снимок
+- [x] **GREEN:** Реализовать GameSession как фасад (MemoryManager + RequestGenerator + Scorer + ErrorDetector)
 
-**Результат:** store связывает domain/game с будущим UI.
-
----
-
-## Checkpoint 11: Базовый UI — Layout
-- [ ] Создать `App.tsx` с тремя панелями (stats, memory, requests)
-- [ ] StatsPanel показывает: score, free memory, fragmentation %
-- [ ] RequestQueue показывает список запросов
-- [ ] GameControls: кнопки Start, Pause
-
-**Результат:** каркас UI отображает данные из store.
+**Результат:** вся игровая логика работает без UI, чисто через тесты (22 теста).
 
 ---
 
-## Checkpoint 12: MemoryCanvas — визуализация памяти
-- [ ] Canvas рендерит блоки памяти как цветные прямоугольники
-- [ ] Зелёный = free, цветной = allocated (цвет по programId)
-- [ ] Клик по блоку — выделение/действие
+## Checkpoint 9: GameLoop ✅
+- [x] **RED:** Тесты — создание, начальное состояние (остановлен)
+- [x] **RED:** Тесты — start/stop переключают isRunning
+- [x] **RED:** Тесты — onTick вызывается через интервал, накопление тиков за кадр
+- [x] **RED:** Тесты — не тикает после stop
+- [x] **RED:** Тесты — pause/resume, isPaused, resume без накопления времени за паузу
+- [x] **GREEN:** Реализовать `GameLoop` с requestAnimationFrame, аккумулятором времени
+
+**Результат:** игра может «тикать» в реальном времени (12 тестов).
+
+---
+
+## Checkpoint 10: Zustand Store ✅
+- [x] Установить `zustand` v5
+- [x] **RED:** Тесты — начальное состояние (idle, tick=0, пустые данные)
+- [x] **RED:** Тесты — `startGame(levelId)` переводит в playing, инициализирует snapshot
+- [x] **RED:** Тесты — `doTick()` увеличивает тик, не работает вне playing
+- [x] **RED:** Тесты — `allocate()` / `free()` обновляют score, убирают запрос
+- [x] **RED:** Тесты — `pause()` / `resume()` переключают состояние
+- [x] **GREEN:** Реализовать `gameStore` с `createStore` (vanilla) + `syncFromSession`
+- [x] Добавить React-хук `useGameStore` с selector-поддержкой
+
+**Результат:** store связывает domain/game с будущим UI (11 тестов).
+
+---
+
+## Checkpoint 11: Базовый UI — Layout ✅
+- [x] Создать `StatsPanel` — score, stability, тик, свободная память, фрагментация, блоки
+- [x] Создать `RequestQueue` — список pending-запросов с кнопками Выделить/Освободить
+- [x] Создать `GameControls` — кнопки Старт/Пауза/Продолжить/Заново по состоянию
+- [x] Обновить `App.tsx` — трёхпанельный layout (stats | memory | requests)
+- [x] Создать `App.css` — тёмная тема, CSS grid layout
+
+**Результат:** каркас UI отображает данные из store, готов к Canvas-визуализации.
+
+---
+
+## Checkpoint 12: MemoryCanvas — визуализация памяти ✅
+- [x] Canvas рендерит блоки памяти как цветные прямоугольники
+- [x] Зелёный = free, цветной = allocated (цвет по programId)
+- [x] Клик по блоку — выделение/действие
 
 **Результат:** память визуально отображается и интерактивна.
 
 ---
 
-## Checkpoint 13: Полный игровой цикл
-- [ ] Связать UI + Store + GameLoop
-- [ ] Запрос появляется → игрок кликает по free блоку → allocate
-- [ ] Запрос на free → игрок кликает по allocated блоку → free
-- [ ] Ошибки отображаются визуально
+## Checkpoint 13: Полный игровой цикл ✅
+- [x] Связать UI + Store + GameLoop
+- [x] Запрос появляется → игрок кликает по free блоку → allocate
+- [x] Запрос на free → игрок кликает по allocated блоку → free
+- [x] Ошибки отображаются визуально
 
 **Результат:** ИГРАБЕЛЬНЫЙ MVP — можно проходить уровень 1.
 
 ---
 
-## Checkpoint 14: Уровни 2-5
-- [ ] Реализовать переход между уровнями
-- [ ] Level 2: случайные размеры + таймер
-- [ ] Level 3: несколько программ
-- [ ] Level 4: fragmentation penalty
-- [ ] Level 5: adversarial patterns
-- [ ] Экран победы / game over
+## Checkpoint 14: Уровни 2-5 ✅
+- [x] Реализовать переход между уровнями
+- [x] Level 2: случайные размеры + таймер
+- [x] Level 3: несколько программ
+- [x] Level 4: fragmentation penalty
+- [x] Level 5: adversarial patterns
+- [x] Экран победы / game over
 
 **Результат:** полная игра с 5 уровнями.
 
 ---
 
-## Checkpoint 15: Polish
-- [ ] Анимации (подсветка ошибок, плавное появление блоков)
-- [ ] Звуковые эффекты (опционально)
-- [ ] Responsive layout
-- [ ] README для пользователей
+## Checkpoint 15: Polish ✅
+- [x] Баг-фикс: `getBlocks()` возвращал ту же ссылку — Zustand не ререндерил
+- [x] Flash-анимации (синий при allocate, зелёный при free)
+- [x] Leak warning — красная пульсация для утечек, оранжевая рамка для близких к порогу
+- [x] Stability bar — визуальная полоса стабильности с цветовой индикацией
+- [x] Анимация slide-in для элементов очереди запросов
+- [x] Responsive layout (планшет ≤900px, мобильный ≤640px)
+- [x] Lint + все 105 тестов ✅
 
 **Результат:** готовый к публикации MVP.
 

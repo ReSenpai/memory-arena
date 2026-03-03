@@ -1,142 +1,101 @@
-# Memory Arena — симулятор управления оперативной памятью
+# 🧠 Memory Arena
 
-## Стек
+> Симулятор управления оперативной памятью — интерактивная игра, которая учит принципам `malloc`/`free`, фрагментации и утечкам памяти через геймплей.
 
-- **Language:** TypeScript (strict mode)
-- **UI Framework:** React 18
-- **State:** Zustand
-- **Rendering:** Canvas 2D API (позже можно PixiJS)
-- **Game loop:** `requestAnimationFrame`
-- **Testing:** Vitest
-- **Build:** Vite
+## 🎮 Играть
 
----
+👉 **[Открыть Memory Arena](https://resenpai.github.io/memory-arena/)**
 
-## 1. Концепция
+## Описание
 
-Игрок — диспетчер оперативной памяти. Программы присылают запросы на выделение/освобождение памяти. Игрок управляет этим вручную: выбирает куда аллоцировать, когда освобождать, как бороться с фрагментацией.
+Вы — диспетчер оперативной памяти. Программы присылают запросы на выделение и освобождение памяти. Обрабатывайте их вовремя, не допускайте утечек и фрагментации, дойдите до конца уровня с максимальным счётом.
 
-**Цель:** дать интуитивное понимание malloc/free, фрагментации и ошибок работы с памятью через геймплей.
+### Основные механики
 
----
+- **Allocate** — выделение памяти для программы (First Fit стратегия)
+- **Free** — освобождение занятого блока с автоматическим merge соседних свободных
+- **Фрагментация** — свободная память разбита на мелкие куски → большие запросы отклоняются
+- **Memory Leak** — блок не освобождён вовремя → штраф стабильности
+- **Double Free** — освобождение свободного блока → Game Over
 
-## 2. Core Gameplay Loop
+### 5 уровней
 
-1. Поступает запрос: `Program C requests 24 bytes`
-2. Игрок выбирает блок свободной памяти и выделяет регион
-3. Через время: `Program C calls free(ptr)` — игрок освобождает
-4. Ошибки (leak, double free, fragmentation) снижают стабильность
-5. Система оценивает: эффективность, стабильность, скорость
+1. **Песочница** — знакомство с механикой
+2. **Случайные запросы** — случайные размеры, ограниченное время
+3. **Многозадачность** — несколько программ одновременно
+4. **Давление** — штраф за фрагментацию, быстрый темп
+5. **Хаос** — вредоносные паттерны
 
----
+## 🛠 Стек
 
-## 3. Режим MVP — Manual Mode (C-like)
+| Технология | Версия |
+|------------|--------|
+| TypeScript | 5.9 (strict) |
+| React | 19 |
+| Zustand | 5 |
+| Vite | 7 |
+| Vitest | 4 |
+| Canvas 2D API | — |
+| ESLint 9 + Prettier | — |
 
-- Игрок вручную вызывает `allocate` и `free`
-- Может объединять свободные блоки (merge)
-- Возможные ошибки: memory leak, double free, fragmentation
-- Стратегия аллокации: First Fit (позже Best Fit, Worst Fit)
+## 🚀 Запуск локально
 
----
+```bash
+# Клонировать
+git clone https://github.com/ReSenpai/memory-arena.git
+cd memory-arena
 
-## 4. Memory Model
+# Установить зависимости
+pnpm install
 
-```ts
-type MemoryBlock = {
-  id: string
-  start: number       // адрес начала
-  size: number         // размер в "ячейках"
-  state: 'free' | 'allocated'
-  programId?: string   // какая программа владеет
-}
+# Запустить dev-сервер
+pnpm dev
+
+# Запустить тесты
+pnpm test
+
+# Линтинг
+pnpm run lint
+
+# Сборка
+pnpm run build
 ```
 
-Вся память — линейный массив фиксированного размера, разбитый на блоки.
-
----
-
-## 5. Failure States
-
-| Ошибка | Условие | Эффект |
-|--------|---------|--------|
-| Memory Leak | Блок не освобождён вовремя | Память заканчивается |
-| Fragmentation | Нет contiguous блока нужного размера | Отказ в аллокации |
-| Double Free | Освобождение уже свободного блока | Crash (game over) |
-
----
-
-## 6. UI
-
-- **Центр:** визуализация памяти — горизонтальная полоса из цветных сегментов (Canvas)
-- **Справа:** лог запросов (очередь)
-- **Слева:** статистика (free memory, fragmentation %, stability, score)
-
----
-
-## 7. Прогрессия (5 уровней)
-
-1. Фиксированные блоки, только allocate/free
-2. Случайные размеры, ограниченное время
-3. Несколько программ одновременно
-4. Штраф за фрагментацию
-5. Вредоносные паттерны (adversarial programs)
-
----
-
-## 8. Scoring
-
-Очки за: низкую фрагментацию, отсутствие утечек, отсутствие crash, скорость реакции.
-
----
-
-## 9. Архитектура
+## 📁 Архитектура
 
 ```
 src/
-├── domain/              <- Чистая логика, 0 зависимостей, 100% тестируемая
-│   ├── MemoryManager.ts     — управление блоками (allocate, free, merge)
-│   ├── Allocator.ts         — стратегии (FirstFit, BestFit)
-│   ├── Scorer.ts            — подсчёт очков и метрик
-│   ├── ErrorDetector.ts     — обнаружение leak/double-free/fragmentation
-│   └── types.ts             — все типы и интерфейсы
+├── domain/          ← Чистая логика, 0 зависимостей
+│   ├── MemoryManager.ts   — allocate, free, merge
+│   ├── Allocator.ts       — стратегии аллокации (First Fit)
+│   ├── Scorer.ts          — подсчёт очков
+│   ├── ErrorDetector.ts   — обнаружение утечек
+│   └── types.ts           — типы и интерфейсы
 │
-├── game/                <- Оркестрация игры
-│   ├── GameLoop.ts          — requestAnimationFrame loop
-│   ├── LevelManager.ts      — конфигурация уровней, прогрессия
-│   ├── RequestGenerator.ts  — генерация запросов от "программ"
-│   └── GameSession.ts       — состояние текущей сессии
+├── game/            ← Оркестрация
+│   ├── GameSession.ts     — состояние сессии, тики, win/lose
+│   ├── GameLoop.ts        — rAF loop
+│   ├── RequestGenerator.ts— генерация запросов
+│   └── LevelManager.ts   — конфигурация 5 уровней
 │
-├── store/               <- Zustand store
-│   └── gameStore.ts         — единый store, связывает domain и UI
+├── store/           ← Zustand
+│   └── gameStore.ts       — единый store
 │
-├── ui/                  <- React-компоненты
+├── ui/              ← React-компоненты
 │   ├── App.tsx
-│   ├── MemoryCanvas.tsx     — Canvas-рендер памяти
-│   ├── RequestQueue.tsx     — очередь запросов
-│   ├── StatsPanel.tsx       — статистика
-│   └── GameControls.tsx     — кнопки управления
+│   ├── MemoryCanvas.tsx   — Canvas 2D визуализация
+│   ├── HelpModal.tsx      — справка и правила
+│   ├── StatsPanel.tsx     — статистика
+│   ├── RequestQueue.tsx   — очередь запросов
+│   ├── GameControls.tsx   — кнопки управления
+│   ├── GameOverlay.tsx    — экран победы/поражения
+│   └── ErrorNotification.tsx
 │
-└── __tests__/           <- Тесты (зеркалят структуру src/)
-    ├── domain/
-    └── game/
+└── __tests__/       ← 105 тестов
 ```
 
-### Ключевые принципы архитектуры
+**Принципы:** Domain — чистый TS без зависимостей. Game — оркестратор. Store — тонкий клей. UI — тупые компоненты.
 
-1. **Domain — чистый TypeScript.** Никакого React, Zustand, Canvas. Только логика и типы. Ядро тестируется на 100% unit-тестами.
+## 📄 Лицензия
 
-2. **Game — оркестратор.** Связывает domain-логику с временем (game loop), генерирует события. Тестируемый с моками для времени.
-
-3. **Store — тонкий клей.** Zustand store вызывает методы domain/game и хранит состояние для React. Минимум логики.
-
-4. **UI — тупые компоненты.** Берут данные из store, рендерят, вызывают actions. Без бизнес-логики.
-
----
-
-## 10. Будущее (вне MVP)
-
-- GC Mode (Mark & Sweep, Reference Counting)
-- Rust-like Safe Mode (ownership/borrowing)
-- Random events (spike load, corruption)
-- Skill tree / unlock progression
-- Dynamic difficulty
+MIT
