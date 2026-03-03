@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 
-describe('Smoke test', () => {
-  it('should pass', () => {
+describe('Smoke-тест', () => {
+  it('должен проходить', () => {
     expect(true).toBe(true)
   })
 })

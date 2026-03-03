@@ -1,6 +1,6 @@
 import type { AllocatorStrategy } from './Allocator'
 import { firstFit } from './Allocator'
-import type { AllocationResult, MemoryBlock } from './types'
+import type { AllocationResult, FreeResult, MemoryBlock } from './types'
 
 export class MemoryManager {
   private blocks: MemoryBlock[]
@@ -28,7 +28,7 @@ export class MemoryManager {
 
     const freeBlock = this.blocks[index]
 
-    // Create allocated block
+    // Создаём выделенный блок
     const allocatedBlock: MemoryBlock = {
       id: `block-${this.nextBlockId++}`,
       start: freeBlock.start,
@@ -38,10 +38,10 @@ export class MemoryManager {
     }
 
     if (freeBlock.size === size) {
-      // Exact fit — replace the free block
+      // Точное совпадение — заменяем свободный блок
       this.blocks.splice(index, 1, allocatedBlock)
     } else {
-      // Split — allocated block + remaining free block
+      // Разделение — выделенный блок + оставшийся свободный
       const remainingBlock: MemoryBlock = {
         id: `block-${this.nextBlockId++}`,
         start: freeBlock.start + size,
@@ -52,6 +52,24 @@ export class MemoryManager {
     }
 
     return { success: true, block: allocatedBlock }
+  }
+
+  free(blockId: string): FreeResult {
+    const block = this.blocks.find((b) => b.id === blockId)
+
+    if (!block) {
+      return { success: false, reason: 'not-found' }
+    }
+
+    if (block.state === 'free') {
+      return { success: false, reason: 'double-free' }
+    }
+
+    // Освобождаем блок
+    block.state = 'free'
+    block.programId = undefined
+
+    return { success: true, block }
   }
 
   getBlocks(): ReadonlyArray<MemoryBlock> {

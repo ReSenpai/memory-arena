@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { MemoryManager } from '../../domain/MemoryManager'
 
 describe('MemoryManager', () => {
-  describe('constructor', () => {
-    it('should create manager with given total size', () => {
+  describe('конструктор', () => {
+    it('создаёт менеджер с заданным размером памяти', () => {
       const mm = new MemoryManager(64)
       const blocks = mm.getBlocks()
 
@@ -15,20 +15,20 @@ describe('MemoryManager', () => {
   })
 
   describe('allocate', () => {
-    it('should allocate a block and split remaining free space', () => {
+    it('выделяет блок и разделяет оставшееся свободное пространство', () => {
       const mm = new MemoryManager(64)
       const result = mm.allocate(16, 'program-1')
 
       expect(result.success).toBe(true)
       if (!result.success) return
 
-      // Allocated block
+      // Выделенный блок
       expect(result.block.size).toBe(16)
       expect(result.block.start).toBe(0)
       expect(result.block.state).toBe('allocated')
       expect(result.block.programId).toBe('program-1')
 
-      // Remaining free block
+      // Оставшийся свободный блок
       const blocks = mm.getBlocks()
       expect(blocks).toHaveLength(2)
       expect(blocks[1].start).toBe(16)
@@ -36,7 +36,7 @@ describe('MemoryManager', () => {
       expect(blocks[1].state).toBe('free')
     })
 
-    it('should allocate exact size without leftover block', () => {
+    it('выделяет блок точного размера без остатка', () => {
       const mm = new MemoryManager(32)
       const result = mm.allocate(32, 'program-1')
 
@@ -48,7 +48,7 @@ describe('MemoryManager', () => {
       expect(mm.getBlocks()[0].state).toBe('allocated')
     })
 
-    it('should allocate multiple blocks sequentially', () => {
+    it('выделяет несколько блоков последовательно', () => {
       const mm = new MemoryManager(64)
       mm.allocate(16, 'p1')
       mm.allocate(16, 'p2')
@@ -65,7 +65,7 @@ describe('MemoryManager', () => {
       expect(blocks[2].size).toBe(32)
     })
 
-    it('should return no-fit when no free block is large enough', () => {
+    it('возвращает no-fit когда нет достаточно большого свободного блока', () => {
       const mm = new MemoryManager(32)
       mm.allocate(32, 'p1')
       const result = mm.allocate(1, 'p2')
@@ -75,20 +75,60 @@ describe('MemoryManager', () => {
       expect(result.reason).toBe('no-fit')
     })
 
-    it('should return no-fit due to fragmentation', () => {
+    it('возвращает no-fit из-за фрагментации', () => {
       const mm = new MemoryManager(32)
-      // allocate two 8-byte blocks with gaps after freeing first
+      // выделяем три блока по 8 ячеек
       mm.allocate(8, 'p1') // [0..7]
       mm.allocate(8, 'p2') // [8..15]
       mm.allocate(8, 'p3') // [16..23]
-      // remaining: [24..31] = 8 free
+      // осталось: [24..31] = 8 свободных
 
-      // Try to allocate 16: no single free block of 16 available
+      // Пытаемся выделить 16 — нет единого свободного блока такого размера
       const result = mm.allocate(16, 'p4')
 
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.reason).toBe('no-fit')
+    })
+  })
+
+  describe('free', () => {
+    it('освобождает выделенный блок', () => {
+      const mm = new MemoryManager(64)
+      const allocResult = mm.allocate(16, 'p1')
+      if (!allocResult.success) throw new Error('аллокация не удалась')
+
+      const result = mm.free(allocResult.block.id)
+
+      expect(result.success).toBe(true)
+      if (!result.success) return
+
+      expect(result.block.state).toBe('free')
+      expect(result.block.programId).toBeUndefined()
+      expect(result.block.start).toBe(0)
+      expect(result.block.size).toBe(16)
+    })
+
+    it('возвращает double-free при повторном освобождении', () => {
+      const mm = new MemoryManager(64)
+      const allocResult = mm.allocate(16, 'p1')
+      if (!allocResult.success) throw new Error('аллокация не удалась')
+
+      mm.free(allocResult.block.id)
+      const result = mm.free(allocResult.block.id)
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.reason).toBe('double-free')
+    })
+
+    it('возвращает not-found для несуществующего блока', () => {
+      const mm = new MemoryManager(64)
+      const result = mm.free('несуществующий-id')
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.reason).toBe('not-found')
     })
   })
 })

@@ -41,13 +41,13 @@
 
 ---
 
-## Checkpoint 3: MemoryManager — free
-- [ ] **RED:** Тест — `free(blockId)` переводит блок в состояние `'free'`
-- [ ] **GREEN:** Реализовать `free`
-- [ ] **RED:** Тест — `free` на уже свободном блоке выбрасывает ошибку (double free)
-- [ ] **GREEN:** Обработать double free
-- [ ] **RED:** Тест — `free` на несуществующем блоке выбрасывает ошибку
-- [ ] **GREEN:** Обработать edge case
+## Checkpoint 3: MemoryManager — free &#x2705;
+- [x] **RED:** Тест — `free(blockId)` переводит блок в состояние `'free'`
+- [x] **GREEN:** Реализовать `free`
+- [x] **RED:** Тест — `free` на уже свободном блоке возвращает `{ success: false, reason: 'double-free' }`
+- [x] **GREEN:** Обработать double free
+- [x] **RED:** Тест — `free` на несуществующем блоке возвращает `{ success: false, reason: 'not-found' }`
+- [x] **GREEN:** Обработать edge case
 
 **Результат:** полный цикл allocate/free работает с обработкой ошибок.
 

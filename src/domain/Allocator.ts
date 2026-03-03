@@ -2,14 +2,14 @@ import type { MemoryBlock } from './types'
 
 /**
  * Стратегия аллокации — выбирает подходящий свободный блок.
- * Возвращает индекс в массиве blocks или -1 если не найден.
+ * Возвращает индекс в массиве blocks, или -1 если подходящий не найден.
  */
 export interface AllocatorStrategy {
   findFreeBlock(blocks: ReadonlyArray<MemoryBlock>, size: number): number
 }
 
 /**
- * First Fit — выбирает первый подходящий свободный блок.
+ * First Fit — выбирает первый подходящий по размеру свободный блок.
  */
 export const firstFit: AllocatorStrategy = {
   findFreeBlock(blocks, size) {
