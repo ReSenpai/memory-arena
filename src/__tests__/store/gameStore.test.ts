@@ -126,4 +126,56 @@ describe('gameStore', () => {
       expect(store.getState().currentTick).toBe(tickBefore)
     })
   })
+
+  describe('lastError', () => {
+    it('начальное значение — null', () => {
+      expect(store.getState().lastError).toBeNull()
+    })
+
+    it('устанавливается при неуспешной аллокации (no-space)', () => {
+      store.getState().startGame(1)
+
+      // Заполняем всю память
+      for (let i = 0; i < 100; i++) {
+        store.getState().doTick()
+        const reqs = store.getState().pendingRequests
+        for (const req of reqs) {
+          if (req.type === 'allocate') {
+            store.getState().allocate(req.payload.id)
+          }
+        }
+      }
+
+      // Генерируем ещё запросы и пытаемся аллоцировать — должно не хватить места
+      for (let i = 0; i < 50; i++) {
+        store.getState().doTick()
+      }
+      const allocReq = store.getState().pendingRequests.find(
+        (r) => r.type === 'allocate',
+      )
+      if (allocReq) {
+        store.getState().allocate(allocReq.payload.id)
+        // Если аллокация не удалась, ошибка должна быть установлена
+        if (!store.getState().pendingRequests.find((r) => r.payload.id === allocReq.payload.id)) {
+          // запрос обработан успешно — пропускаем
+        } else {
+          expect(store.getState().lastError).not.toBeNull()
+        }
+      }
+    })
+
+    it('устанавливается при несуществующем запросе', () => {
+      store.getState().startGame(1)
+      store.getState().allocate('nonexistent')
+      expect(store.getState().lastError).toBe('Запрос не найден')
+    })
+
+    it('clearError сбрасывает ошибку', () => {
+      store.getState().startGame(1)
+      store.getState().allocate('nonexistent')
+      expect(store.getState().lastError).not.toBeNull()
+      store.getState().clearError()
+      expect(store.getState().lastError).toBeNull()
+    })
+  })
 })

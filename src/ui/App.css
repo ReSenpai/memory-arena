@@ -228,3 +228,64 @@ html, body, #root {
   color: #555;
   font-size: 0.9rem;
 }
+
+/* === ErrorNotification === */
+.error-notification {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: #3d1f1f;
+  border: 1px solid #da3633;
+  border-radius: 8px;
+  color: #f85149;
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  animation: error-slide-in 0.25s ease-out;
+}
+
+@keyframes error-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.error-icon {
+  font-size: 1.1rem;
+}
+
+.error-message {
+  white-space: nowrap;
+}
+
+.error-close {
+  background: none;
+  border: none;
+  color: #f85149;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0 4px;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.error-close:hover {
+  opacity: 1;
+}
+
+/* === MemoryCanvas === */
+.memory-canvas {
+  border-radius: 6px;
+  border: 1px solid #2a2d3a;
+}

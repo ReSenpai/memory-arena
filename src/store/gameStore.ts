@@ -25,6 +25,8 @@ export type GameStore = {
   stability: number
   metrics: MemoryMetrics | null
   levelId: number
+  /** Последнее сообщение об ошибке (авто-очищается в UI) */
+  lastError: string | null
 
   // --- Actions ---
   startGame: (levelId: number) => void
@@ -37,6 +39,7 @@ export type GameStore = {
   ) => FreeResult | { success: false; reason: 'request-not-found' }
   pause: () => void
   resume: () => void
+  clearError: () => void
 }
 
 /** Ссылка на текущую GameSession (хранится вне store — мутабельный объект) */
@@ -80,6 +83,7 @@ export function createGameStore() {
     stability: 1,
     metrics: null,
     levelId: 1,
+    lastError: null,
 
     // --- Actions ---
 
@@ -103,6 +107,14 @@ export function createGameStore() {
       }
       const result = session.allocate(requestId)
       syncFromSession(set, get().levelId)
+      if (!result.success) {
+        const messages: Record<string, string> = {
+          'no-space': 'Недостаточно свободной памяти!',
+          'no-fit': 'Нет подходящего блока нужного размера!',
+          'request-not-found': 'Запрос не найден',
+        }
+        set({ lastError: messages[result.reason] ?? 'Ошибка аллокации' })
+      }
       return result
     },
 
@@ -112,7 +124,19 @@ export function createGameStore() {
       }
       const result = session.free(requestId)
       syncFromSession(set, get().levelId)
+      if (!result.success) {
+        const messages: Record<string, string> = {
+          'not-found': 'Блок не найден!',
+          'double-free': 'Двойное освобождение!',
+          'request-not-found': 'Запрос не найден',
+        }
+        set({ lastError: messages[result.reason] ?? 'Ошибка освобождения' })
+      }
       return result
+    },
+
+    clearError() {
+      set({ lastError: null })
     },
 
     pause() {
