@@ -7,6 +7,7 @@ import { GameControls } from './GameControls'
 import { MemoryCanvas } from './MemoryCanvas'
 import { ErrorNotification } from './ErrorNotification'
 import { GameOverlay } from './GameOverlay'
+import { HelpModal } from './HelpModal'
 import { useGameLoop } from './useGameLoop'
 import './App.css'
 
@@ -55,7 +56,10 @@ export function App() {
     <div className="app">
       <header className="app-header">
         <h1>Memory Arena</h1>
-        <GameControls />
+        <div className="header-right">
+          <GameControls />
+          <HelpModal />
+        </div>
       </header>
 
       <main className="app-main">
