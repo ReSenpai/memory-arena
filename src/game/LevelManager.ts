@@ -6,7 +6,7 @@ export const TOTAL_LEVELS = 5
 const LEVELS: LevelConfig[] = [
   {
     id: 1,
-    name: 'Stack Basics',
+    name: 'Основы стека',
     gridRows: 8,
     gridCols: 8,
     targetScore: 500,
@@ -19,7 +19,7 @@ const LEVELS: LevelConfig[] = [
   },
   {
     id: 2,
-    name: 'Heap Growth',
+    name: 'Рост кучи',
     gridRows: 10,
     gridCols: 10,
     targetScore: 1000,
@@ -32,7 +32,7 @@ const LEVELS: LevelConfig[] = [
   },
   {
     id: 3,
-    name: 'Dangling Pointers',
+    name: 'Висячие указатели',
     gridRows: 12,
     gridCols: 12,
     targetScore: 2000,
@@ -45,7 +45,7 @@ const LEVELS: LevelConfig[] = [
   },
   {
     id: 4,
-    name: 'Fragmentation',
+    name: 'Фрагментация',
     gridRows: 16,
     gridCols: 16,
     targetScore: 3000,
@@ -58,7 +58,7 @@ const LEVELS: LevelConfig[] = [
   },
   {
     id: 5,
-    name: 'Memory Chaos',
+    name: 'Хаос памяти',
     gridRows: 20,
     gridCols: 20,
     targetScore: 5000,

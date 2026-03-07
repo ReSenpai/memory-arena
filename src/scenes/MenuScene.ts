@@ -21,7 +21,7 @@ export class MenuScene extends Phaser.Scene {
 
     // Subtitle
     this.add
-      .text(width / 2, height * 0.25 + 50, 'Manage memory. Place blocks. Free pointers.', {
+      .text(width / 2, height * 0.25 + 50, 'Управляй памятью. Размещай блоки. Освобождай указатели.', {
         fontSize: '13px',
         fontFamily: 'monospace',
         color: '#8b949e',
@@ -36,7 +36,7 @@ export class MenuScene extends Phaser.Scene {
 
     // Help text
     this.add
-      .text(width / 2, height - 60, 'R — rotate block   P — pause   Drag cards to the grid', {
+      .text(width / 2, height - 60, 'R — поворот   Esc — пауза   Перетаскивай карточки на сетку', {
         fontSize: '11px',
         fontFamily: 'monospace',
         color: '#484f58',
@@ -47,8 +47,8 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private createLevelButton(x: number, y: number, levelId: number): void {
-    const names = ['Stack Basics', 'Heap Growth', 'Dangling Pointers', 'Fragmentation', 'Memory Chaos']
-    const label = `Level ${levelId}: ${names[levelId - 1]}`
+    const names = ['Основы стека', 'Рост кучи', 'Висячие указатели', 'Фрагментация', 'Хаос памяти']
+    const label = `Уровень ${levelId}: ${names[levelId - 1]}`
 
     const bg = this.add.graphics()
     bg.fillStyle(0x161b22)

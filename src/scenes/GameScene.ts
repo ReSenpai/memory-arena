@@ -35,7 +35,7 @@ export class GameScene extends Phaser.Scene {
   private paused = false
   /** Overlay при паузе */
   private pauseOverlay!: Phaser.GameObjects.Graphics
-  private pauseText!: Phaser.GameObjects.Text
+  private pauseMenu!: Phaser.GameObjects.Container
   /** Help text */
   private helpText!: Phaser.GameObjects.Text
 
@@ -90,14 +90,14 @@ export class GameScene extends Phaser.Scene {
     // Hover handler
     this.input.on('pointermove', this.onPointerMove, this)
 
-    // Pause — P key
-    this.input.keyboard?.on('keydown-P', () => {
+    // Pause — Esc key
+    this.input.keyboard?.on('keydown-ESC', () => {
       this.togglePause()
     })
 
     // Help text
     this.helpText = this.add
-      .text(this.scale.width / 2, this.scale.height - 4, 'R — rotate   P — pause   Drag cards to grid', {
+      .text(this.scale.width / 2, this.scale.height - 4, 'R — поворот   Esc — пауза   Перетаскивай карточки на сетку', {
         fontSize: '10px',
         fontFamily: 'monospace',
         color: '#484f58',
@@ -107,16 +107,7 @@ export class GameScene extends Phaser.Scene {
 
     // Pause overlay (hidden initially)
     this.pauseOverlay = this.add.graphics().setDepth(500).setVisible(false)
-    this.pauseText = this.add
-      .text(this.scale.width / 2, this.scale.height / 2, 'PAUSED\n\nPress P to resume', {
-        fontSize: '24px',
-        fontFamily: 'monospace',
-        color: '#58a6ff',
-        align: 'center',
-      })
-      .setOrigin(0.5)
-      .setDepth(501)
-      .setVisible(false)
+    this.pauseMenu = this.add.container(0, 0).setDepth(501).setVisible(false)
 
     this.scale.on('resize', this.onResize, this)
   }
@@ -158,18 +149,131 @@ export class GameScene extends Phaser.Scene {
       this.session.resume()
       this.paused = false
       this.pauseOverlay.setVisible(false)
-      this.pauseText.setVisible(false)
+      this.pauseMenu.setVisible(false)
+      this.pauseMenu.removeAll(true)
     } else {
       this.session.pause()
       this.paused = true
-      const { width, height } = this.scale
-      this.pauseOverlay.clear()
-      this.pauseOverlay.fillStyle(0x000000, 0.6)
-      this.pauseOverlay.fillRect(0, 0, width, height)
-      this.pauseOverlay.setVisible(true)
-      this.pauseText.setPosition(width / 2, height / 2)
-      this.pauseText.setVisible(true)
+      this.buildPauseMenu()
     }
+  }
+
+  /** Построить меню паузы */
+  private buildPauseMenu(): void {
+    const { width, height } = this.scale
+
+    // Overlay
+    this.pauseOverlay.clear()
+    this.pauseOverlay.fillStyle(0x000000, 0.6)
+    this.pauseOverlay.fillRect(0, 0, width, height)
+    this.pauseOverlay.setVisible(true)
+
+    // Очистить старое содержимое
+    this.pauseMenu.removeAll(true)
+
+    // Panel background
+    const panelW = 360
+    const panelH = 380
+    const px = (width - panelW) / 2
+    const py = (height - panelH) / 2
+
+    const panelBg = this.add.graphics()
+    panelBg.fillStyle(0x0d1117, 0.95)
+    panelBg.fillRoundedRect(px, py, panelW, panelH, 10)
+    panelBg.lineStyle(1, 0x21262d)
+    panelBg.strokeRoundedRect(px, py, panelW, panelH, 10)
+    this.pauseMenu.add(panelBg)
+
+    // Title
+    const title = this.add
+      .text(width / 2, py + 30, 'ПАУЗА', {
+        fontSize: '22px',
+        fontFamily: 'monospace',
+        color: '#58a6ff',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+    this.pauseMenu.add(title)
+
+    // Help rules text
+    const rules = [
+      '• Перетащи карточку ALLOC на сетку — разместить блок',
+      '• Перетащи карточку FREE на блок — освободить память',
+      '• Не успел освободить — блок станет мусором',
+      '• Мусор можно перетаскивать для дефрагментации',
+      '• Повторный FREE на растворяющийся блок = double-free!',
+      '• R — повернуть блок при перетаскивании',
+      '• Набери целевой счёт для победы',
+    ]
+    const rulesText = this.add
+      .text(px + 20, py + 60, rules.join('\n'), {
+        fontSize: '10px',
+        fontFamily: 'monospace',
+        color: '#8b949e',
+        lineSpacing: 6,
+        wordWrap: { width: panelW - 40 },
+      })
+      .setOrigin(0, 0)
+    this.pauseMenu.add(rulesText)
+
+    // Buttons
+    const btnY = py + panelH - 100
+    this.createPauseButton(width / 2, btnY, 'Продолжить', () => {
+      this.togglePause()
+    })
+    this.createPauseButton(width / 2, btnY + 44, 'Главное меню', () => {
+      this.pauseMenu.removeAll(true)
+      this.pauseMenu.setVisible(false)
+      this.pauseOverlay.setVisible(false)
+      this.scene.start('MenuScene')
+    })
+
+    this.pauseMenu.setVisible(true)
+  }
+
+  /** Создать кнопку в меню паузы */
+  private createPauseButton(x: number, y: number, label: string, onClick: () => void): void {
+    const bg = this.add.graphics()
+    bg.fillStyle(0x161b22)
+    bg.fillRoundedRect(x - 100, y - 16, 200, 36, 6)
+    bg.lineStyle(1, 0x21262d)
+    bg.strokeRoundedRect(x - 100, y - 16, 200, 36, 6)
+    this.pauseMenu.add(bg)
+
+    const text = this.add
+      .text(x, y, label, {
+        fontSize: '13px',
+        fontFamily: 'monospace',
+        color: '#e6edf3',
+      })
+      .setOrigin(0.5)
+    this.pauseMenu.add(text)
+
+    const zone = this.add
+      .zone(x - 100, y - 16, 200, 36)
+      .setOrigin(0, 0)
+      .setInteractive({ useHandCursor: true })
+
+    zone.on('pointerover', () => {
+      bg.clear()
+      bg.fillStyle(0x1f2937)
+      bg.fillRoundedRect(x - 100, y - 16, 200, 36, 6)
+      bg.lineStyle(1, 0x58a6ff)
+      bg.strokeRoundedRect(x - 100, y - 16, 200, 36, 6)
+      text.setColor('#58a6ff')
+    })
+
+    zone.on('pointerout', () => {
+      bg.clear()
+      bg.fillStyle(0x161b22)
+      bg.fillRoundedRect(x - 100, y - 16, 200, 36, 6)
+      bg.lineStyle(1, 0x21262d)
+      bg.strokeRoundedRect(x - 100, y - 16, 200, 36, 6)
+      text.setColor('#e6edf3')
+    })
+
+    zone.on('pointerdown', onClick)
+    this.pauseMenu.add(zone)
   }
 
   isPaused(): boolean {
@@ -409,10 +513,7 @@ export class GameScene extends Phaser.Scene {
     this.syncStats()
     this.helpText.setPosition(this.scale.width / 2, this.scale.height - 4)
     if (this.paused) {
-      this.pauseOverlay.clear()
-      this.pauseOverlay.fillStyle(0x000000, 0.6)
-      this.pauseOverlay.fillRect(0, 0, this.scale.width, this.scale.height)
-      this.pauseText.setPosition(this.scale.width / 2, this.scale.height / 2)
+      this.buildPauseMenu()
     }
   }
 

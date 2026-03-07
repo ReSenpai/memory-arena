@@ -44,7 +44,7 @@ export class StatsBar {
 
     // Stability label
     this.stabilityLabel = scene.add
-      .text(0, 10, 'STABILITY', {
+      .text(0, 10, 'СТАБИЛЬНОСТЬ', {
         fontSize: '9px',
         fontFamily: 'monospace',
         color: '#8b949e',
@@ -80,7 +80,7 @@ export class StatsBar {
   ): void {
     const w = this.scene.scale.width
 
-    this.levelText.setText(`LVL ${levelId}`)
+    this.levelText.setText(`УРОВЕНЬ ${levelId}`)
     this.scoreText.setText(`${score} / ${targetScore}`)
     this.scoreText.setX(w / 2)
 

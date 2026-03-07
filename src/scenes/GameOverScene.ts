@@ -17,7 +17,7 @@ export class GameOverScene extends Phaser.Scene {
 
     // Title
     this.add
-      .text(width / 2, height * 0.3, isWin ? 'VICTORY!' : 'GAME OVER', {
+      .text(width / 2, height * 0.3, isWin ? 'ПОБЕДА!' : 'ПОРАЖЕНИЕ', {
         fontSize: '32px',
         fontFamily: 'monospace',
         color: isWin ? '#3fb950' : '#f85149',
@@ -27,7 +27,7 @@ export class GameOverScene extends Phaser.Scene {
 
     // Score
     this.add
-      .text(width / 2, height * 0.3 + 50, `Score: ${data.score} / ${data.targetScore}`, {
+      .text(width / 2, height * 0.3 + 50, `Очки: ${data.score} / ${data.targetScore}`, {
         fontSize: '16px',
         fontFamily: 'monospace',
         color: '#e6edf3',
@@ -35,21 +35,21 @@ export class GameOverScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     // Retry button
-    this.createButton(width / 2, height * 0.55, 'Retry', () => {
+    this.createButton(width / 2, height * 0.55, 'Заново', () => {
       this.scene.stop()
       this.scene.start('GameScene', { levelId: data.levelId })
     })
 
     // Next level button (on win, if not last level)
     if (isWin && data.levelId < 5) {
-      this.createButton(width / 2, height * 0.55 + 48, 'Next Level', () => {
+      this.createButton(width / 2, height * 0.55 + 48, 'След. уровень', () => {
         this.scene.stop()
         this.scene.start('GameScene', { levelId: data.levelId + 1 })
       })
     }
 
     // Menu button
-    this.createButton(width / 2, height * 0.55 + (isWin && data.levelId < 5 ? 96 : 48), 'Menu', () => {
+    this.createButton(width / 2, height * 0.55 + (isWin && data.levelId < 5 ? 96 : 48), 'Меню', () => {
       this.scene.stop()
       this.scene.start('MenuScene')
     })

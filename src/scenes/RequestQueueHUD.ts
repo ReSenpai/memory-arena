@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import type { GameRequest } from '../domain/types'
-
+ 
 const CARD_W = 90
 const CARD_H = 64
 const CARD_GAP = 8

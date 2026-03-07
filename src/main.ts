@@ -10,9 +10,13 @@ const config: Phaser.Types.Core.GameConfig = {
   backgroundColor: '#0d1017',
   scale: {
     mode: Phaser.Scale.RESIZE,
-    width: '100%',
-    height: '100%',
+    width: window.innerWidth,
+    height: window.innerHeight,
     autoCenter: Phaser.Scale.CENTER_BOTH,
+  },
+  render: {
+    antialias: true,
+    roundPixels: false,
   },
   scene: [BootScene, MenuScene, GameScene, GameOverScene],
 }
