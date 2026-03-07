@@ -1,68 +1,86 @@
-import { MemoryManager } from '../domain/MemoryManager'
-import { Scorer } from '../domain/Scorer'
-import { detectLeaks } from '../domain/ErrorDetector'
 import type {
-  AllocationResult,
+  AllocatedBlock,
+  CellContent,
   FreeResult,
-  MemoryBlock,
-  MemoryMetrics,
-  MemoryRequest,
+  GameRequest,
+  GarbageBlock,
+  MoveGarbageResult,
+  PlaceResult,
+  Pointer,
 } from '../domain/types'
-import type { LevelConfig } from './types'
+import { rotateShape } from '../domain/Shapes'
+import { MemoryGrid } from '../domain/MemoryGrid'
+import { PointerRegistry } from '../domain/PointerRegistry'
+import { Scorer } from '../domain/Scorer'
+import { GarbageManager } from '../domain/GarbageManager'
 import { RequestGenerator } from './RequestGenerator'
+import { getLevelConfig } from './LevelManager'
+import { SeededRandom } from './SeededRandom'
+import type { LevelConfig } from './types'
 
-/** Состояние игровой сессии */
 export type SessionState = 'idle' | 'playing' | 'paused' | 'finished'
-
-/** Причина завершения сессии */
 export type FinishReason = 'win' | 'lose' | null
 
-/** Полный снимок состояния сессии (для UI) */
 export type SessionSnapshot = {
-  blocks: ReadonlyArray<MemoryBlock>
-  metrics: MemoryMetrics
-  pendingRequests: MemoryRequest[]
-  score: number
-  stability: number
-  tick: number
   state: SessionState
   finishReason: FinishReason
-  targetTicks: number
-  leakThreshold: number
+  levelId: number
+  currentTick: number
+  score: number
+  stability: number
+  targetScore: number
+  gridSnapshot: CellContent[][]
+  gridRows: number
+  gridCols: number
+  allocatedBlocks: AllocatedBlock[]
+  garbageBlocks: GarbageBlock[]
+  pendingRequests: GameRequest[]
+  dissolvingBlockIds: string[]
 }
 
 /**
- * GameSession — фасад, связывающий MemoryManager, RequestGenerator, Scorer и ErrorDetector.
- *
- * Отвечает за:
- * - Тик-based обновление (генерация запросов, детекция утечек)
- * - Действия игрока (allocate, free)
- * - Управление состоянием (start, pause, resume, finish)
+ * GameSession v2 — главный фасад игры.
+ * Оркестрирует: MemoryGrid, PointerRegistry, RequestGenerator, Scorer, GarbageManager.
  */
 export class GameSession {
-  private memoryManager: MemoryManager
-  private requestGenerator: RequestGenerator
-  private scorer: Scorer
-  private config: LevelConfig
-
-  private currentTick = 0
   private state: SessionState = 'idle'
-  private pendingRequests: MemoryRequest[] = []
   private finishReason: FinishReason = null
+  private currentTick = 0
 
-  constructor(config: LevelConfig, seed: number) {
-    this.config = config
-    this.memoryManager = new MemoryManager(config.memorySize)
-    this.requestGenerator = new RequestGenerator(config, seed)
+  private config: LevelConfig
+  private grid: MemoryGrid
+  private registry: PointerRegistry
+  private scorer: Scorer
+  private garbageManager: GarbageManager
+  private requestGen: RequestGenerator
+
+  private pendingRequests: GameRequest[] = []
+  private allocatedBlocks = new Map<string, AllocatedBlock>()
+  /** requestId → AllocateRequest (для сопоставления) */
+  private allocateRequestMap = new Map<string, GameRequest>()
+  private freeRequestMap = new Map<string, GameRequest>()
+  /** Блоки в процессе растворения: blockId → оставшихся тиков */
+  private dissolvingBlocks = new Map<string, number>()
+  private static readonly DISSOLVE_TICKS = 6
+
+  constructor(levelId: number, seed: number) {
+    this.config = getLevelConfig(levelId)
+    this.grid = new MemoryGrid(this.config.gridRows, this.config.gridCols)
+    this.registry = new PointerRegistry()
     this.scorer = new Scorer()
+    this.garbageManager = new GarbageManager()
+    const rng = new SeededRandom(seed)
+    this.requestGen = new RequestGenerator(this.config, rng)
   }
 
-  // --- Управление состоянием ---
+  getState(): SessionState {
+    return this.state
+  }
 
-  /** Запускает сессию и генерирует начальный запрос (тик 0) */
   start(): void {
-    this.state = 'playing'
-    this.generateRequest()
+    if (this.state === 'idle') {
+      this.state = 'playing'
+    }
   }
 
   pause(): void {
@@ -77,167 +95,242 @@ export class GameSession {
     }
   }
 
-  finish(): void {
-    this.state = 'finished'
+  resolvePointer(pointer: Pointer): string | null {
+    return this.registry.resolve(pointer)
   }
 
-  // --- Тик ---
-
-  /** Продвигает время на 1 тик: генерирует запросы, проверяет утечки, проверяет условия победы/поражения */
   tick(): void {
     if (this.state !== 'playing') return
 
     this.currentTick++
-    this.generateRequest()
-    this.checkLeaks()
 
-    // Проверка поражения: стабильность упала до 0
-    const summary = this.scorer.getSummary()
-    if (summary.stability <= 0) {
+    // 1. Генерация запросов
+    this.requestGen.setCurrentQueueSize(this.pendingRequests.length)
+    const newRequests = this.requestGen.tick(this.currentTick)
+    for (const req of newRequests) {
+      this.pendingRequests.push(req)
+      if (req.type === 'allocate') {
+        this.allocateRequestMap.set(req.payload.id, req)
+      } else {
+        this.freeRequestMap.set(req.payload.id, req)
+      }
+    }
+
+    // 2. Проверка просроченных free-запросов
+    const freeRequests = this.pendingRequests
+      .filter((r) => r.type === 'free')
+      .map((r) => r.payload as { id: string; pointer: Pointer; deadline: number; createdAtTick: number })
+
+    const expired = this.garbageManager.checkExpiredFrees(freeRequests, this.currentTick)
+
+    for (const exp of expired) {
+      const blockId = this.registry.resolve(exp.pointer)
+      if (blockId) {
+        const block = this.allocatedBlocks.get(blockId)
+        if (block) {
+          // Конвертируем в garbage
+          this.grid.remove(blockId)
+          const garbage = this.garbageManager.convertToGarbage(block)
+          this.grid.placeGarbage(garbage)
+          this.allocatedBlocks.delete(blockId)
+          this.registry.losePointer(exp.pointer)
+          this.requestGen.unregisterAllocated(blockId)
+          this.scorer.onMissedFree()
+        }
+      }
+      // Удаляем просроченный free из очереди
+      this.pendingRequests = this.pendingRequests.filter(
+        (r) => !(r.type === 'free' && r.payload.id === exp.id),
+      )
+      this.freeRequestMap.delete(exp.id)
+    }
+
+    // 3. Queue overflow
+    if (this.requestGen.isQueueOverflow()) {
+      this.scorer.onQueueOverflow()
+    }
+
+    // 4. Фрагментация штраф
+    const metrics = this.grid.getMetrics()
+    if (metrics.fragmentation > 0) {
+      this.scorer.onFragmentationPenalty(metrics.fragmentation)
+    }
+
+    // 5. Проверка pointer loss от генератора
+    const lostPointers = this.requestGen.getLostPointers()
+    for (const lp of lostPointers) {
+      const blockId = this.registry.resolve(lp)
+      if (blockId) {
+        const block = this.allocatedBlocks.get(blockId)
+        if (block) {
+          this.dissolvingBlocks.delete(blockId)
+          this.grid.remove(blockId)
+          const garbage = this.garbageManager.convertToGarbage(block)
+          this.grid.placeGarbage(garbage)
+          this.allocatedBlocks.delete(blockId)
+          this.registry.losePointer(lp)
+          this.scorer.onMissedFree()
+        }
+      }
+    }
+
+    // 6. Обработка растворяющихся блоков
+    for (const [blockId, remaining] of this.dissolvingBlocks) {
+      const next = remaining - 1
+      if (next <= 0) {
+        // Полностью удаляем блок
+        const block = this.allocatedBlocks.get(blockId)
+        if (block) {
+          this.grid.remove(blockId)
+          this.registry.unregister(block.pointer)
+          this.allocatedBlocks.delete(blockId)
+          this.requestGen.unregisterAllocated(blockId)
+        }
+        this.dissolvingBlocks.delete(blockId)
+      } else {
+        this.dissolvingBlocks.set(blockId, next)
+      }
+    }
+
+    // 7. Win / Lose check
+    if (this.scorer.getStability() <= 0) {
+      this.state = 'finished'
       this.finishReason = 'lose'
+    } else if (this.scorer.getScore() >= this.config.targetScore) {
       this.state = 'finished'
-      return
-    }
-
-    // Проверка победы: продержался targetTicks
-    if (this.currentTick >= this.config.targetTicks) {
       this.finishReason = 'win'
-      this.state = 'finished'
     }
   }
 
-  // --- Действия игрока ---
-
-  /**
-   * Выполняет аллокацию по id запроса из очереди.
-   * Возвращает результат аллокации или ошибку, если запрос не найден.
-   */
-  allocate(
-    requestId: string,
-  ): AllocationResult | { success: false; reason: 'request-not-found' } {
-    const index = this.pendingRequests.findIndex(
-      (r) => r.payload.id === requestId,
-    )
-    if (index === -1) {
+  placeBlock(requestId: string, row: number, col: number, rotation: number): PlaceResult {
+    const req = this.allocateRequestMap.get(requestId)
+    if (!req || req.type !== 'allocate') {
       return { success: false, reason: 'request-not-found' }
     }
 
-    const request = this.pendingRequests[index]
-    if (request.type !== 'allocate') {
-      return { success: false, reason: 'request-not-found' }
+    const shape = rotateShape(req.payload.shape, rotation)
+    if (!this.grid.canPlace(shape, row, col)) {
+      // Определяем причину
+      for (const cell of shape) {
+        const r = row + cell.row
+        const c = col + cell.col
+        if (r < 0 || r >= this.config.gridRows || c < 0 || c >= this.config.gridCols) {
+          return { success: false, reason: 'out-of-bounds' }
+        }
+      }
+      return { success: false, reason: 'collision' }
     }
 
-    const result = this.memoryManager.allocate(
-      request.payload.size,
-      request.payload.programId,
-      this.currentTick,
+    const cells = shape.map((c) => ({ row: row + c.row, col: col + c.col }))
+    const pointer = PointerRegistry.pointerForCell(row, col, this.config.gridCols)
+    const block: AllocatedBlock = {
+      id: `block-${requestId}`,
+      pointer,
+      process: req.payload.process,
+      shape,
+      cells,
+      placedAtTick: this.currentTick,
+    }
+
+    this.grid.place(block)
+    this.registry.register(pointer, block.id)
+    this.allocatedBlocks.set(block.id, block)
+    this.requestGen.registerAllocated(block.id, block.pointer)
+
+    // Удаляем запрос из очереди
+    this.pendingRequests = this.pendingRequests.filter((r) =>
+      !(r.type === 'allocate' && r.payload.id === requestId),
     )
+    this.allocateRequestMap.delete(requestId)
 
-    if (result.success) {
-      this.pendingRequests.splice(index, 1)
-      this.scorer.onSuccessfulAllocate(request.payload.size)
-    }
+    // Очки
+    this.scorer.onAllocate(shape.length)
+    const ticksSince = this.currentTick - req.payload.createdAtTick
+    this.scorer.onQuickAction(ticksSince)
 
-    return result
+    return { success: true, block }
   }
 
-  /**
-   * Выполняет освобождение по id запроса из очереди.
-   * Возвращает результат освобождения или ошибку, если запрос не найден.
-   */
-  free(
-    requestId: string,
-  ): FreeResult | { success: false; reason: 'request-not-found' } {
-    const index = this.pendingRequests.findIndex(
-      (r) => r.payload.id === requestId,
-    )
-    if (index === -1) {
+  freeBlock(freeRequestId: string, targetBlockId: string): FreeResult {
+    const req = this.freeRequestMap.get(freeRequestId)
+    if (!req || req.type !== 'free') {
       return { success: false, reason: 'request-not-found' }
     }
 
-    const request = this.pendingRequests[index]
-    if (request.type !== 'free') {
-      return { success: false, reason: 'request-not-found' }
-    }
-
-    const result = this.memoryManager.free(request.payload.blockId)
-
-    if (result.success) {
-      this.pendingRequests.splice(index, 1)
-      this.scorer.onSuccessfulFree()
-      this.memoryManager.mergeFreeBlocks()
-    } else if (result.reason === 'double-free') {
+    // Double-free: блок уже растворяется
+    if (this.dissolvingBlocks.has(targetBlockId)) {
       this.scorer.onDoubleFree()
-      this.pendingRequests.splice(index, 1)
+      // Удаляем free из очереди
+      this.pendingRequests = this.pendingRequests.filter(
+        (r) => !(r.type === 'free' && r.payload.id === freeRequestId),
+      )
+      this.freeRequestMap.delete(freeRequestId)
+      return { success: false, reason: 'double-free' }
     }
 
+    const block = this.allocatedBlocks.get(targetBlockId)
+    if (!block) {
+      return { success: false, reason: 'not-found' }
+    }
+
+    // Проверяем pointer
+    if (block.pointer !== req.payload.pointer) {
+      this.scorer.onWrongFree()
+      return { success: false, reason: 'pointer-mismatch' }
+    }
+
+    // Начинаем растворение вместо мгновенного удаления
+    this.dissolvingBlocks.set(targetBlockId, GameSession.DISSOLVE_TICKS)
+
+    // Удаляем free из очереди
+    this.pendingRequests = this.pendingRequests.filter(
+      (r) => !(r.type === 'free' && r.payload.id === freeRequestId),
+    )
+    this.freeRequestMap.delete(freeRequestId)
+
+    this.scorer.onFree()
+    const ticksSince = this.currentTick - req.payload.createdAtTick
+    this.scorer.onQuickAction(ticksSince)
+
+    return { success: true, freedCells: [...block.cells] }
+  }
+
+  moveGarbage(garbageId: string, newRow: number, newCol: number): MoveGarbageResult {
+    const result = this.grid.moveGarbage(garbageId, newRow, newCol)
+    if (result.success) {
+      this.scorer.onDefragMove()
+    }
     return result
   }
 
-  // --- Геттеры ---
-
-  getCurrentTick(): number {
-    return this.currentTick
-  }
-
-  getState(): SessionState {
-    return this.state
-  }
-
-  getPendingRequests(): MemoryRequest[] {
-    return [...this.pendingRequests]
-  }
-
-  getScoreSummary(): { score: number; stability: number } {
-    return this.scorer.getSummary()
-  }
-
-  /** Полный снимок состояния для UI */
   getSnapshot(): SessionSnapshot {
-    const summary = this.scorer.getSummary()
+    const gridSnapshot = this.grid.getSnapshot()
+
+    // Пометить растворяющиеся ячейки
+    for (const [blockId] of this.dissolvingBlocks) {
+      const block = this.allocatedBlocks.get(blockId)
+      if (block) {
+        for (const cell of block.cells) {
+          gridSnapshot[cell.row][cell.col] = { type: 'dissolving', blockId }
+        }
+      }
+    }
+
     return {
-      blocks: this.memoryManager.getBlocks(),
-      metrics: this.memoryManager.getMetrics(),
-      pendingRequests: [...this.pendingRequests],
-      score: summary.score,
-      stability: summary.stability,
-      tick: this.currentTick,
       state: this.state,
       finishReason: this.finishReason,
-      targetTicks: this.config.targetTicks,
-      leakThreshold: this.config.leakThreshold,
-    }
-  }
-
-  // --- Приватные методы ---
-
-  /** Генерирует запрос от RequestGenerator и добавляет в очередь */
-  private generateRequest(): void {
-    const allocatedBlockIds = this.memoryManager
-      .getBlocks()
-      .filter((b) => b.state === 'allocated')
-      .map((b) => b.id)
-
-    const request = this.requestGenerator.generate(
-      this.currentTick,
-      allocatedBlockIds,
-    )
-
-    if (request) {
-      this.pendingRequests.push(request)
-    }
-  }
-
-  /** Проверяет утечки и штрафует за каждый утёкший блок */
-  private checkLeaks(): void {
-    const leaks = detectLeaks(
-      this.memoryManager.getBlocks(),
-      this.currentTick,
-      this.config.leakThreshold,
-    )
-
-    for (let i = 0; i < leaks.length; i++) {
-      this.scorer.onLeakDetected()
+      levelId: this.config.id,
+      currentTick: this.currentTick,
+      score: this.scorer.getScore(),
+      stability: this.scorer.getStability(),
+      targetScore: this.config.targetScore,
+      gridSnapshot,
+      gridRows: this.config.gridRows,
+      gridCols: this.config.gridCols,
+      allocatedBlocks: [...this.allocatedBlocks.values()],
+      garbageBlocks: this.garbageManager.getGarbageBlocks(),
+      pendingRequests: [...this.pendingRequests],
+      dissolvingBlockIds: [...this.dissolvingBlocks.keys()],
     }
   }
 }

@@ -1,79 +1,107 @@
-import type { MemoryRequest } from '../domain/types'
+import type { GameRequest, Pointer } from '../domain/types'
+import type { SeededRandom } from './SeededRandom'
 import type { LevelConfig } from './types'
-import { SeededRandom } from './SeededRandom'
 
 /**
- * Генератор запросов на выделение/освобождение памяти.
- *
- * Генерирует запросы с заданным интервалом (по тикам).
- * Использует seed-based random для детерминированности в тестах.
- *
- * Логика выбора типа запроса:
- * - Если нет аллоцированных блоков — всегда allocate
- * - Иначе: ~40% шанс на free, ~60% на allocate
+ * RequestGenerator v2 — генерирует allocate/free запросы с shaped-блоками,
+ * deadlines и pointer loss.
  */
 export class RequestGenerator {
-  private random: SeededRandom
   private config: LevelConfig
-  private requestCounter = 0
+  private rng: SeededRandom
+  private nextId = 1
+  /** BlockId → Pointer для отслеживания allocated блоков (для free) */
+  private allocatedPointers = new Map<string, Pointer>()
+  private lostPointers: Pointer[] = []
+  private currentQueueSize = 0
 
-  constructor(config: LevelConfig, seed: number) {
+  constructor(config: LevelConfig, rng: SeededRandom) {
     this.config = config
-    this.random = new SeededRandom(seed)
+    this.rng = rng
+  }
+
+  /** Отметить блок как allocated (для генерации free запросов) */
+  registerAllocated(blockId: string, pointer: Pointer): void {
+    this.allocatedPointers.set(blockId, pointer)
+  }
+
+  /** Убрать блок из allocated (после free) */
+  unregisterAllocated(blockId: string): void {
+    this.allocatedPointers.delete(blockId)
+  }
+
+  setCurrentQueueSize(size: number): void {
+    this.currentQueueSize = size
+  }
+
+  isQueueOverflow(): boolean {
+    return this.currentQueueSize > this.config.maxQueueSize
+  }
+
+  getLostPointers(): Pointer[] {
+    return [...this.lostPointers]
   }
 
   /**
-   * Генерирует запрос на заданном тике.
-   * Возвращает null, если на этом тике запрос не нужен.
-   *
-   * @param tick — текущий тик
-   * @param allocatedBlockIds — id аллоцированных блоков (для free-запросов)
+   * Вызывается каждый тик. Возвращает новые запросы (если пора).
    */
-  generate(tick: number, allocatedBlockIds: string[]): MemoryRequest | null {
-    if (tick % this.config.requestInterval !== 0) {
-      return null
-    }
+  tick(currentTick: number): GameRequest[] {
+    const requests: GameRequest[] = []
 
-    const id = `req-${this.requestCounter++}`
-    const shouldFree =
-      allocatedBlockIds.length > 0 && this.random.next() < 0.4
+    // Генерация по интервалу
+    if (currentTick % this.config.requestInterval !== 0) return requests
 
-    if (shouldFree) {
-      const blockIndex = this.random.nextInt(
-        0,
-        allocatedBlockIds.length - 1,
-      )
-      const programId =
-        this.config.programIds[
-          this.random.nextInt(0, this.config.programIds.length - 1)
-        ]
-
-      return {
-        type: 'free',
-        payload: {
-          id,
-          programId,
-          blockId: allocatedBlockIds[blockIndex],
-        },
-      }
-    }
-
-    const size = this.random.nextInt(
-      this.config.minBlockSize,
-      this.config.maxBlockSize,
-    )
-    const programId =
-      this.config.programIds[
-        this.random.nextInt(0, this.config.programIds.length - 1)
+    // Генерируем allocate
+    const shape =
+      this.config.availableShapes[
+        this.rng.nextInt(0, this.config.availableShapes.length - 1)
+      ]
+    const process =
+      this.config.processNames[
+        this.rng.nextInt(0, this.config.processNames.length - 1)
       ]
 
-    return {
+    requests.push({
       type: 'allocate',
       payload: {
-        id,
-        programId,
-        size,
+        id: `req-${this.nextId++}`,
+        process,
+        pointer: '',
+        shape,
+        createdAtTick: currentTick,
       },
+    })
+
+    // Иногда генерируем free (если есть allocated блоки)
+    if (this.allocatedPointers.size > 0 && this.rng.next() < 0.5) {
+      const entries = Array.from(this.allocatedPointers.entries())
+      const [, freePointer] =
+        entries[this.rng.nextInt(0, entries.length - 1)]
+
+      requests.push({
+        type: 'free',
+        payload: {
+          id: `req-${this.nextId++}`,
+          pointer: freePointer,
+          deadline: currentTick + this.config.freeDeadlineTicks,
+          createdAtTick: currentTick,
+        },
+      })
     }
+
+    // Pointer loss
+    if (
+      this.config.pointerLossChance > 0 &&
+      this.allocatedPointers.size > 0 &&
+      this.rng.next() < this.config.pointerLossChance
+    ) {
+      const entries = Array.from(this.allocatedPointers.entries())
+      const [lostBlockId, lostPointer] =
+        entries[this.rng.nextInt(0, entries.length - 1)]
+      this.lostPointers.push(lostPointer)
+      this.allocatedPointers.delete(lostBlockId)
+    }
+
+    return requests
   }
 }

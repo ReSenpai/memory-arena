@@ -1,89 +1,139 @@
 import { describe, it, expect } from 'vitest'
 import { Scorer } from '../../domain/Scorer'
 
-describe('Scorer', () => {
+describe('Scorer v2 — система очков', () => {
   describe('начальное состояние', () => {
-    it('начальный score = 0', () => {
-      const scorer = new Scorer()
-      expect(scorer.getScore()).toBe(0)
-    })
-
-    it('начальная stability = 1', () => {
-      const scorer = new Scorer()
-      expect(scorer.getStability()).toBe(1)
+    it('score = 0, stability = 1', () => {
+      const s = new Scorer()
+      expect(s.getScore()).toBe(0)
+      expect(s.getStability()).toBe(1)
     })
   })
 
-  describe('onSuccessfulAllocate', () => {
-    it('успешный allocate даёт +10 очков за каждую ячейку', () => {
-      const scorer = new Scorer()
-      scorer.onSuccessfulAllocate(4) // 4 ячейки × 10 = 40
-      expect(scorer.getScore()).toBe(40)
+  describe('onAllocate', () => {
+    it('начисляет size × 10 очков', () => {
+      const s = new Scorer()
+      s.onAllocate(4)
+      expect(s.getScore()).toBe(40)
     })
 
-    it('очки накапливаются при нескольких аллокациях', () => {
-      const scorer = new Scorer()
-      scorer.onSuccessfulAllocate(4) // +40
-      scorer.onSuccessfulAllocate(2) // +20
-      expect(scorer.getScore()).toBe(60)
-    })
-  })
-
-  describe('onSuccessfulFree', () => {
-    it('успешный free даёт +5 очков', () => {
-      const scorer = new Scorer()
-      scorer.onSuccessfulFree()
-      expect(scorer.getScore()).toBe(5)
+    it('начисляет за несколько аллокаций', () => {
+      const s = new Scorer()
+      s.onAllocate(2)
+      s.onAllocate(3)
+      expect(s.getScore()).toBe(50)
     })
   })
 
-  describe('onLeakDetected', () => {
-    it('утечка снижает score на 20', () => {
-      const scorer = new Scorer()
-      scorer.onSuccessfulAllocate(5) // +50
-      scorer.onLeakDetected() // -20
-      expect(scorer.getScore()).toBe(30)
+  describe('onFree', () => {
+    it('начисляет +10 очков', () => {
+      const s = new Scorer()
+      s.onFree()
+      expect(s.getScore()).toBe(10)
+    })
+  })
+
+  describe('onDefragMove', () => {
+    it('начисляет +5 очков', () => {
+      const s = new Scorer()
+      s.onDefragMove()
+      expect(s.getScore()).toBe(5)
+    })
+  })
+
+  describe('onQuickAction', () => {
+    it('начисляет бонус за быстрое действие (≤ 3 тика)', () => {
+      const s = new Scorer()
+      s.onQuickAction(1)
+      expect(s.getScore()).toBeGreaterThan(0)
     })
 
+    it('не начисляет бонус за медленное действие (> 3 тика)', () => {
+      const s = new Scorer()
+      s.onQuickAction(5)
+      expect(s.getScore()).toBe(0)
+    })
+  })
+
+  describe('onMissedFree', () => {
+    it('штраф −20 очков и −0.1 стабильности', () => {
+      const s = new Scorer()
+      s.onAllocate(10) // +100 чтобы score не ушёл в 0
+      s.onMissedFree()
+      expect(s.getScore()).toBe(80)
+      expect(s.getStability()).toBeCloseTo(0.9)
+    })
+  })
+
+  describe('onWrongFree', () => {
+    it('штраф −5 очков', () => {
+      const s = new Scorer()
+      s.onAllocate(10) // +100
+      s.onWrongFree()
+      expect(s.getScore()).toBe(95)
+    })
+
+    it('не снижает стабильность', () => {
+      const s = new Scorer()
+      s.onWrongFree()
+      expect(s.getStability()).toBe(1)
+    })
+  })
+
+  describe('onFragmentationPenalty', () => {
+    it('штраф пропорционален фрагментации', () => {
+      const s = new Scorer()
+      s.onAllocate(20) // +200
+      s.onFragmentationPenalty(0.5)
+      const score = s.getScore()
+      expect(score).toBeLessThan(200)
+      expect(score).toBeGreaterThan(0)
+    })
+
+    it('нет штрафа при 0 фрагментации', () => {
+      const s = new Scorer()
+      s.onAllocate(10) // +100
+      s.onFragmentationPenalty(0)
+      expect(s.getScore()).toBe(100)
+    })
+  })
+
+  describe('onQueueOverflow', () => {
+    it('снижает стабильность на 0.05', () => {
+      const s = new Scorer()
+      s.onQueueOverflow()
+      expect(s.getStability()).toBeCloseTo(0.95)
+    })
+  })
+
+  describe('clamp', () => {
     it('score не опускается ниже 0', () => {
-      const scorer = new Scorer()
-      scorer.onLeakDetected()
-      expect(scorer.getScore()).toBe(0)
+      const s = new Scorer()
+      s.onMissedFree()
+      s.onMissedFree()
+      s.onMissedFree()
+      expect(s.getScore()).toBe(0)
     })
 
-    it('утечка снижает stability на 0.1', () => {
-      const scorer = new Scorer()
-      scorer.onLeakDetected()
-      expect(scorer.getStability()).toBeCloseTo(0.9)
-    })
-  })
-
-  describe('onDoubleFree', () => {
-    it('double free обнуляет stability', () => {
-      const scorer = new Scorer()
-      scorer.onDoubleFree()
-      expect(scorer.getStability()).toBe(0)
+    it('stability не опускается ниже 0', () => {
+      const s = new Scorer()
+      for (let i = 0; i < 15; i++) s.onMissedFree()
+      expect(s.getStability()).toBe(0)
     })
 
-    it('double free снижает score на 50', () => {
-      const scorer = new Scorer()
-      scorer.onSuccessfulAllocate(10) // +100
-      scorer.onDoubleFree() // -50
-      expect(scorer.getScore()).toBe(50)
+    it('stability не превышает 1', () => {
+      const s = new Scorer()
+      expect(s.getStability()).toBe(1)
     })
   })
 
   describe('getSummary', () => {
-    it('возвращает сводку с текущими значениями', () => {
-      const scorer = new Scorer()
-      scorer.onSuccessfulAllocate(3) // +30
-      scorer.onSuccessfulFree() // +5
-
-      const summary = scorer.getSummary()
-      expect(summary).toEqual({
-        score: 35,
-        stability: 1,
-      })
+    it('возвращает score и stability', () => {
+      const s = new Scorer()
+      s.onAllocate(5)
+      s.onFree()
+      const summary = s.getSummary()
+      expect(summary).toEqual({ score: 60, stability: 1 })
     })
   })
 })
