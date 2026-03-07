@@ -1,58 +1,94 @@
 import { useGameStore } from '../store/gameStore'
+import type { GameRequest } from '../domain/types'
 
-/** Очередь запросов — список pending-запросов с кнопками действий */
+/** Горизонтальная очередь запросов внизу экрана */
 export function RequestQueue() {
   const pendingRequests = useGameStore((s) => s.pendingRequests)
-  const allocate = useGameStore((s) => s.allocate)
-  const free = useGameStore((s) => s.free)
-  const sessionState = useGameStore((s) => s.sessionState)
+  const selectedRequestId = useGameStore((s) => s.selectedRequestId)
+  const selectRequest = useGameStore((s) => s.selectRequest)
+  const currentTick = useGameStore((s) => s.currentTick)
 
-  if (sessionState === 'idle') {
+  if (pendingRequests.length === 0) {
     return (
-      <div className="request-queue">
-        <h2>Запросы</h2>
-        <p className="queue-empty">Нажмите «Старт» чтобы начать</p>
+      <div className="request-queue-bar">
+        <span className="queue-empty">Очередь пуста — ожидайте запросы</span>
       </div>
     )
   }
 
   return (
-    <div className="request-queue">
-      <h2>Запросы ({pendingRequests.length})</h2>
-
-      {pendingRequests.length === 0 && (
-        <p className="queue-empty">Нет активных запросов</p>
-      )}
-
-      <ul className="request-list">
-        {pendingRequests.map((req) => (
-          <li
-            key={req.payload.id}
-            className={`request-item request-${req.type}`}
-          >
-            <div className="request-info">
-              <span className="request-type">
-                {req.type === 'allocate' ? 'ALLOC' : 'FREE'}
-              </span>
-              <span className="request-details">
-                {req.type === 'allocate'
-                  ? `${req.payload.size} ячеек — ${req.payload.programId}`
-                  : `блок ${req.payload.blockId} — ${req.payload.programId}`}
-              </span>
-            </div>
-            <button
-              className="request-action"
-              onClick={() =>
-                req.type === 'allocate'
-                  ? allocate(req.payload.id)
-                  : free(req.payload.id)
-              }
-            >
-              {req.type === 'allocate' ? 'Выделить' : 'Освободить'}
-            </button>
-          </li>
-        ))}
-      </ul>
+    <div className="request-queue-bar">
+      {pendingRequests.map((req) => (
+        <RequestCard
+          key={req.payload.id}
+          request={req}
+          currentTick={currentTick}
+          isSelected={selectedRequestId === req.payload.id}
+          onSelect={() =>
+            selectRequest(
+              selectedRequestId === req.payload.id ? null : req.payload.id,
+            )
+          }
+        />
+      ))}
     </div>
+  )
+}
+
+function RequestCard({
+  request,
+  currentTick,
+  isSelected,
+  onSelect,
+}: {
+  request: GameRequest
+  currentTick: number
+  isSelected: boolean
+  onSelect: () => void
+}) {
+  const isAlloc = request.type === 'allocate'
+
+  // Deadline progress for free requests
+  let deadlinePct = 100
+  let isUrgent = false
+  if (!isAlloc) {
+    const { deadline, createdAtTick } = request.payload
+    const total = deadline - createdAtTick
+    const remaining = deadline - currentTick
+    deadlinePct = total > 0 ? Math.max(0, (remaining / total) * 100) : 0
+    isUrgent = deadlinePct < 30
+  }
+
+  const className = [
+    'request-card',
+    isAlloc ? 'request-card-alloc' : 'request-card-free',
+    isSelected ? 'request-card-selected' : '',
+    isUrgent ? 'request-card-urgent' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  return (
+    <button className={className} onClick={onSelect}>
+      <span className="request-card-type">
+        {isAlloc ? 'ALLOC' : 'FREE'}
+      </span>
+      <span className="request-card-detail">
+        {isAlloc
+          ? `${request.payload.process} (${request.payload.shape.length})`
+          : request.payload.pointer}
+      </span>
+      {!isAlloc && (
+        <div className="request-card-timer">
+          <div
+            className="request-card-timer-fill"
+            style={{
+              width: `${deadlinePct}%`,
+              background: isUrgent ? '#f85149' : '#f0883e',
+            }}
+          />
+        </div>
+      )}
+    </button>
   )
 }

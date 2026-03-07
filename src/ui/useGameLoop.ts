@@ -2,16 +2,13 @@ import { useEffect, useRef } from 'react'
 import { GameLoop } from '../game/GameLoop'
 import { useGameStore } from '../store/gameStore'
 
-/** Интервал одного тика в миллисекундах */
 const TICK_INTERVAL_MS = 500
 
 /**
- * Хук для подключения GameLoop к Zustand store.
- *
- * Автоматически запускает / останавливает / паузит loop
- * в зависимости от sessionState.
+ * Хук: запускает/останавливает GameLoop в зависимости от sessionState.
+ * Вызывает doTick() на каждый тик.
  */
-export function useGameLoop(): void {
+export function useGameLoop() {
   const sessionState = useGameStore((s) => s.sessionState)
   const doTick = useGameStore((s) => s.doTick)
   const loopRef = useRef<GameLoop | null>(null)
@@ -20,24 +17,18 @@ export function useGameLoop(): void {
     if (sessionState === 'playing') {
       if (!loopRef.current) {
         loopRef.current = new GameLoop(TICK_INTERVAL_MS, doTick)
-        loopRef.current.start()
-      } else if (loopRef.current.isPaused()) {
-        loopRef.current.resume()
       }
+      loopRef.current.start()
     } else if (sessionState === 'paused') {
       loopRef.current?.pause()
     } else {
-      // idle или finished — останавливаем полностью
       loopRef.current?.stop()
       loopRef.current = null
     }
-  }, [sessionState, doTick])
 
-  // Очистка при размонтировании
-  useEffect(() => {
     return () => {
       loopRef.current?.stop()
       loopRef.current = null
     }
-  }, [])
+  }, [sessionState, doTick])
 }

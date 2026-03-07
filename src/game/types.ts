@@ -1,25 +1,23 @@
-/**
- * Конфигурация уровня
- */
+import type { Shape } from '../domain/types'
+
+/** Конфигурация уровня */
 export type LevelConfig = {
-  /** Номер уровня (1-5) */
   id: number
-  /** Название уровня */
   name: string
-  /** Общий размер памяти (в ячейках) */
-  memorySize: number
-  /** Интервал между запросами (в тиках) */
+  gridRows: number
+  gridCols: number
+  /** Очки для победы */
+  targetScore: number
+  /** Доступные фигуры на уровне */
+  availableShapes: Shape[]
+  /** Интервал генерации запросов (в тиках) */
   requestInterval: number
-  /** Минимальный размер аллокации */
-  minBlockSize: number
-  /** Максимальный размер аллокации */
-  maxBlockSize: number
-  /** ID программ, которые отправляют запросы */
-  programIds: string[]
-  /** Тиков до утечки */
-  leakThreshold: number
-  /** Штраф за фрагментацию включён */
-  fragmentationPenalty: boolean
-  /** Сколько тиков нужно продержаться для прохождения уровня */
-  targetTicks: number
+  /** Тикам до превращения в garbage (при пропуске free) */
+  freeDeadlineTicks: number
+  /** Шанс потери pointer'а (0–1). 0 для Level 1–2 */
+  pointerLossChance: number
+  /** Макс. размер очереди — переполнение штрафует стабильность */
+  maxQueueSize: number
+  /** Имена процессов для этого уровня */
+  processNames: string[]
 }

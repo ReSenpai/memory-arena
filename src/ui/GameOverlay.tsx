@@ -1,13 +1,7 @@
 import { useGameStore } from '../store/gameStore'
-import { getAllLevels } from '../game/LevelManager'
+import { TOTAL_LEVELS } from '../game/LevelManager'
 
-/**
- * GameOverlay — оверлей для результатов уровня и выбора уровня.
- *
- * Показывается при finished-состоянии:
- * - win → поздравление + кнопка «Следующий уровень»
- * - lose → game over + кнопка «Попробовать снова»
- */
+/** Оверлей при победе или поражении */
 export function GameOverlay() {
   const sessionState = useGameStore((s) => s.sessionState)
   const finishReason = useGameStore((s) => s.finishReason)
@@ -19,34 +13,23 @@ export function GameOverlay() {
 
   if (sessionState !== 'finished') return null
 
-  const levels = getAllLevels()
-  const currentLevel = levels.find((l) => l.id === levelId)
-  const hasNextLevel = levelId < 5
+  const isWin = finishReason === 'win'
+  const isLastLevel = levelId >= TOTAL_LEVELS
 
   return (
     <div className="overlay-backdrop">
       <div className="overlay-card">
-        {finishReason === 'win' ? (
-          <>
-            <div className="overlay-icon overlay-win">🏆</div>
-            <h2 className="overlay-title overlay-title-win">
-              Уровень пройден!
-            </h2>
-            <p className="overlay-subtitle">
-              {currentLevel?.name ?? `Уровень ${levelId}`}
-            </p>
-          </>
-        ) : (
-          <>
-            <div className="overlay-icon overlay-lose">💀</div>
-            <h2 className="overlay-title overlay-title-lose">
-              Стабильность потеряна
-            </h2>
-            <p className="overlay-subtitle">
-              Утечки памяти разрушили систему
-            </p>
-          </>
-        )}
+        <div className="overlay-icon">{isWin ? '🏆' : '💥'}</div>
+        <h2
+          className={`overlay-title ${isWin ? 'overlay-title-win' : 'overlay-title-lose'}`}
+        >
+          {isWin ? 'Уровень пройден!' : 'Система упала!'}
+        </h2>
+        <p className="overlay-subtitle">
+          {isWin
+            ? `Целевой счёт достигнут на уровне ${levelId}`
+            : 'Стабильность системы упала до нуля'}
+        </p>
 
         <div className="overlay-stats">
           <div className="overlay-stat">
@@ -56,30 +39,28 @@ export function GameOverlay() {
           <div className="overlay-stat">
             <span className="overlay-stat-label">Стабильность</span>
             <span className="overlay-stat-value">
-              {(stability * 100).toFixed(0)}%
+              {Math.round(stability * 100)}%
             </span>
           </div>
         </div>
 
         <div className="overlay-actions">
-          <button
-            className="btn btn-start"
-            onClick={() => startGame(levelId)}
-          >
-            🔄 Заново
-          </button>
-
-          {finishReason === 'win' && hasNextLevel && (
+          {isWin && !isLastLevel && (
             <button className="btn btn-next" onClick={nextLevel}>
-              ▶ Следующий уровень
+              Следующий уровень →
             </button>
           )}
-
-          {finishReason === 'win' && !hasNextLevel && (
+          {isWin && isLastLevel && (
             <p className="overlay-complete">
-              🎉 Все уровни пройдены! Вы мастер памяти!
+              Все уровни пройдены! 🎉
             </p>
           )}
+          <button
+            className="btn btn-start"
+            onClick={() => startGame(isWin ? levelId : levelId)}
+          >
+            {isWin ? 'Повторить уровень' : 'Попробовать снова'}
+          </button>
         </div>
       </div>
     </div>

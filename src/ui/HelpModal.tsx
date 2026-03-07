@@ -1,256 +1,130 @@
 import { useState } from 'react'
 
-/**
- * Модалка «Помощь» — подробные правила игры и механики работы памяти.
- * Открывается кнопкой «?» в хедере.
- */
 export function HelpModal() {
   const [open, setOpen] = useState(false)
 
-  if (!open) {
-    return (
+  return (
+    <>
       <button
-        className="btn btn-help"
+        className="btn-help"
         onClick={() => setOpen(true)}
-        title="Правила и справка"
+        title="Правила игры"
       >
         ?
       </button>
-    )
-  }
 
-  return (
-    <div className="help-backdrop" onClick={() => setOpen(false)}>
-      <div className="help-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="help-header">
-          <h2>📖 Справка — Memory Arena</h2>
-          <button
-            className="help-close"
-            onClick={() => setOpen(false)}
-          >
-            ✕
-          </button>
+      {open && (
+        <div className="help-backdrop" onClick={() => setOpen(false)}>
+          <div className="help-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="help-header">
+              <h2>📖 Как играть</h2>
+              <button
+                className="help-close"
+                onClick={() => setOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="help-body">
+              <section className="help-section">
+                <h3>🎯 Цель</h3>
+                <p>
+                  Управляйте памятью: размещайте блоки на grid-доске, 
+                  освобождайте их по запросам и боритесь с фрагментацией. 
+                  Наберите целевой счёт чтобы пройти уровень.
+                </p>
+              </section>
+
+              <section className="help-section">
+                <h3>📦 Запросы на выделение (ALLOC)</h3>
+                <p>
+                  Выберите ALLOC-карточку в очереди внизу, 
+                  затем кликните на grid чтобы разместить блок. 
+                  Каждый блок имеет фигуру (как в Тетрисе).
+                </p>
+                <p>
+                  <strong>R</strong> — повернуть фигуру на 90°.
+                  Зелёный призрак = можно разместить, красный = нельзя.
+                </p>
+              </section>
+
+              <section className="help-section">
+                <h3>🗑️ Запросы на освобождение (FREE)</h3>
+                <p>
+                  FREE-карточки содержат pointer (0xXXXX). 
+                  Выберите карточку, затем кликните на блок с соответствующим pointer.
+                  У FREE есть дедлайн — таймер внизу карточки.
+                </p>
+                <p>
+                  Если не успеете — блок станет <strong>garbage</strong> (утечка памяти), 
+                  а стабильность снизится.
+                </p>
+              </section>
+
+              <section className="help-section">
+                <h3>♻️ Дефрагментация</h3>
+                <p>
+                  Garbage-блоки (коричневые с диагональю) можно перемещать: 
+                  кликните на garbage → кликните на свободное место. 
+                  За каждый ход +5 очков.
+                </p>
+              </section>
+
+              <section className="help-section">
+                <h3>⚡ Pointer Loss (от Уровня 3)</h3>
+                <p>
+                  Случайно pointer может быть потерян. 
+                  Блок сразу превращается в garbage, а стабильность падает.
+                </p>
+              </section>
+
+              <section className="help-section">
+                <h3>📊 Очки</h3>
+                <table className="help-table">
+                  <thead>
+                    <tr><th>Действие</th><th>Очки</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>Размещение блока</td><td>+size × 10</td></tr>
+                    <tr><td>Освобождение</td><td>+10</td></tr>
+                    <tr><td>Быстрое действие (≤3 тика)</td><td>+бонус</td></tr>
+                    <tr><td>Дефрагментация</td><td>+5</td></tr>
+                    <tr><td>Пропущенный free</td><td>−20, −10% стаб.</td></tr>
+                    <tr><td>Неверный free</td><td>−5</td></tr>
+                    <tr><td>Фрагментация</td><td>постепенный штраф</td></tr>
+                  </tbody>
+                </table>
+              </section>
+
+              <section className="help-section">
+                <h3>🏆 Уровни</h3>
+                <table className="help-table">
+                  <thead>
+                    <tr><th>Уровень</th><th>Grid</th><th>Цель</th><th>Особенности</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>1</td><td>8×8</td><td>500</td><td>Простые фигуры</td></tr>
+                    <tr><td>2</td><td>10×10</td><td>1000</td><td>Больше процессов</td></tr>
+                    <tr><td>3</td><td>12×12</td><td>2000</td><td>Pointer loss</td></tr>
+                    <tr><td>4</td><td>16×16</td><td>3000</td><td>Сложные фигуры</td></tr>
+                    <tr><td>5</td><td>20×20</td><td>5000</td><td>Хаос</td></tr>
+                  </tbody>
+                </table>
+              </section>
+
+              <section className="help-section">
+                <h3>💡 Советы</h3>
+                <ul>
+                  <li>Размещайте блоки компактно — фрагментация штрафует</li>
+                  <li>Обрабатывайте FREE быстро — дедлайны реальны</li>
+                  <li>Двигайте garbage к краям чтобы освободить центр</li>
+                  <li>Следите за стабильностью — при 0% проигрыш</li>
+                </ul>
+              </section>
+            </div>
+          </div>
         </div>
-
-        <div className="help-body">
-          {/* --- Цель игры --- */}
-          <section className="help-section">
-            <h3>🎯 Цель игры</h3>
-            <p>
-              Вы — диспетчер оперативной памяти. Программы присылают
-              запросы на выделение (<strong>allocate</strong>) и
-              освобождение (<strong>free</strong>) памяти. Ваша задача —
-              обрабатывать запросы, не допуская утечек и ошибок, и
-              дожить до конца уровня с высоким счётом.
-            </p>
-          </section>
-
-          {/* --- Как играть --- */}
-          <section className="help-section">
-            <h3>🕹️ Как играть</h3>
-            <ol>
-              <li>
-                Нажмите <strong>▶ Старт</strong> для начала уровня.
-              </li>
-              <li>
-                В правой панели появляются запросы от программ. Каждый
-                запрос — это либо <em>allocate</em> (выделить память),
-                либо <em>free</em> (освободить).
-              </li>
-              <li>
-                <strong>Allocate-запрос:</strong> нажмите кнопку
-                «Выделить» в очереди, или кликните на любой{' '}
-                <strong>свободный</strong> блок на карте памяти.
-              </li>
-              <li>
-                <strong>Free-запрос:</strong> нажмите кнопку
-                «Освободить» в очереди, или кликните на{' '}
-                <strong>занятый</strong> блок, для которого есть
-                соответствующий free-запрос.
-              </li>
-              <li>
-                Если запрос не обработан вовремя — блоки «утекают» и
-                стабильность падает.
-              </li>
-            </ol>
-          </section>
-
-          {/* --- Карта памяти --- */}
-          <section className="help-section">
-            <h3>🧱 Карта памяти (Canvas)</h3>
-            <p>
-              В центре экрана — визуализация оперативной памяти. Каждый
-              прямоугольник — блок:
-            </p>
-            <ul>
-              <li>
-                <span className="help-color help-color-free" />{' '}
-                <strong>Серый</strong> — свободный блок, готов к
-                аллокации
-              </li>
-              <li>
-                <span className="help-color help-color-alloc" />{' '}
-                <strong>Синий/фиолетовый</strong> — занятый блок
-                (выделена память для программы)
-              </li>
-              <li>
-                <span className="help-color help-color-warn" />{' '}
-                <strong>Оранжевая рамка</strong> — блок приближается к
-                порогу утечки
-              </li>
-              <li>
-                <span className="help-color help-color-leak" />{' '}
-                <strong>Красная пульсация</strong> — утечка памяти!
-                Немедленно освободите
-              </li>
-            </ul>
-            <p>
-              При аллокации блок мигает синим, при освобождении —
-              зелёным.
-            </p>
-          </section>
-
-          {/* --- Механика памяти --- */}
-          <section className="help-section">
-            <h3>💾 Как работает память</h3>
-            <p>
-              Память — это непрерывная полоса фиксированного размера,
-              разделённая на блоки. Это упрощённая модель того, как
-              работает <code>malloc()</code> / <code>free()</code> в
-              языке C.
-            </p>
-
-            <h4>Аллокация (allocate)</h4>
-            <p>
-              Когда программа запрашивает N ячеек, менеджер ищет
-              свободный блок подходящего размера по стратегии{' '}
-              <strong>First Fit</strong> — берёт первый подходящий
-              свободный блок. Если блок больше, чем нужно, он
-              разделяется на два: занятый и остаток.
-            </p>
-
-            <h4>Освобождение (free)</h4>
-            <p>
-              При освобождении блок помечается как свободный. Если рядом
-              стоят другие свободные блоки, они автоматически{' '}
-              <strong>объединяются</strong> (merge) — это уменьшает
-              фрагментацию.
-            </p>
-
-            <h4>Фрагментация</h4>
-            <p>
-              Когда свободная память разбита на множество мелких кусков,
-              новый большой запрос может не уместиться, даже если
-              суммарно памяти хватает. Это и есть{' '}
-              <strong>фрагментация</strong>. Показатель фрагментации
-              виден в панели статистики.
-            </p>
-          </section>
-
-          {/* --- Ошибки --- */}
-          <section className="help-section">
-            <h3>⚠️ Ошибки и штрафы</h3>
-            <table className="help-table">
-              <thead>
-                <tr>
-                  <th>Ошибка</th>
-                  <th>Условие</th>
-                  <th>Штраф</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Memory Leak</td>
-                  <td>
-                    Блок не освобождён в течение порогового числа тиков
-                  </td>
-                  <td>−0.1 стабильности за каждую утечку</td>
-                </tr>
-                <tr>
-                  <td>Allocation Fail</td>
-                  <td>
-                    Нет свободного блока подходящего размера
-                    (фрагментация)
-                  </td>
-                  <td>Запрос теряется, снижение очков</td>
-                </tr>
-                <tr>
-                  <td>Double Free</td>
-                  <td>Попытка освободить уже свободный блок</td>
-                  <td>Стабильность обнуляется → Game Over</td>
-                </tr>
-              </tbody>
-            </table>
-          </section>
-
-          {/* --- Стабильность и очки --- */}
-          <section className="help-section">
-            <h3>📊 Стабильность и очки</h3>
-            <p>
-              <strong>Стабильность</strong> — от 0% до 100%. Начинается
-              на 100%. Каждая утечка снижает на 10%. Double free
-              обнуляет. Если стабильность достигает 0% — вы проиграли.
-            </p>
-            <p>
-              <strong>Очки</strong> начисляются за каждый обработанный
-              тик. Чем меньше фрагментация и больше стабильность, тем
-              выше бонус.
-            </p>
-          </section>
-
-          {/* --- Прогрессия --- */}
-          <section className="help-section">
-            <h3>🏆 Уровни</h3>
-            <ol>
-              <li>
-                <strong>Песочница</strong> — фиксированные блоки,
-                знакомство с механикой
-              </li>
-              <li>
-                <strong>Случайные запросы</strong> — случайные размеры,
-                ограниченное время
-              </li>
-              <li>
-                <strong>Многозадачность</strong> — несколько программ
-                одновременно
-              </li>
-              <li>
-                <strong>Давление</strong> — штраф за фрагментацию,
-                быстрый темп
-              </li>
-              <li>
-                <strong>Хаос</strong> — вредоносные паттерны от программ
-              </li>
-            </ol>
-            <p>
-              Дойдите до конца уровня (прогресс-бар в шапке), чтобы
-              перейти на следующий.
-            </p>
-          </section>
-
-          {/* --- Горячие клавиши --- */}
-          <section className="help-section">
-            <h3>⌨️ Советы</h3>
-            <ul>
-              <li>
-                Следите за <strong>оранжевыми рамками</strong> — они
-                предупреждают об утечке заранее
-              </li>
-              <li>
-                Старайтесь освобождать блоки <strong>по порядку</strong>{' '}
-                — это снижает фрагментацию
-              </li>
-              <li>
-                Ставьте <strong>паузу</strong>, если нужно подумать
-              </li>
-              <li>
-                Следите за показателем <strong>фрагментации</strong> —
-                если он высокий, крупные запросы будут отклонены
-              </li>
-            </ul>
-          </section>
-        </div>
-      </div>
-    </div>
+      )}
+    </>
   )
 }

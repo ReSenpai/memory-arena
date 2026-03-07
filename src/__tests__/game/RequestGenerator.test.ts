@@ -1,115 +1,99 @@
 import { describe, it, expect } from 'vitest'
 import { RequestGenerator } from '../../game/RequestGenerator'
 import { getLevelConfig } from '../../game/LevelManager'
+import { SeededRandom } from '../../game/SeededRandom'
+import { PointerRegistry } from '../../domain/PointerRegistry'
 
-describe('RequestGenerator', () => {
-  const config = getLevelConfig(1) // requestInterval = 8, programIds = ['A'], size 4-8
+describe('RequestGenerator v2 — генерация запросов', () => {
+  function makeGenerator(levelId = 1) {
+    const config = getLevelConfig(levelId)
+    const rng = new SeededRandom(42)
+    const registry = new PointerRegistry()
+    return new RequestGenerator(config, rng, registry)
+  }
 
-  describe('генерация по интервалу', () => {
-    it('не генерирует запрос на тике, не кратном requestInterval', () => {
-      const gen = new RequestGenerator(config, 42)
-      const request = gen.generate(3, [])
-      expect(request).toBeNull()
+  describe('allocate запросы', () => {
+    it('генерирует allocate запрос на нужном тике', () => {
+      const gen = makeGenerator()
+      const config = getLevelConfig(1)
+      const requests = gen.tick(config.requestInterval)
+      const allocs = requests.filter((r) => r.type === 'allocate')
+      expect(allocs.length).toBeGreaterThan(0)
     })
 
-    it('генерирует запрос на тике, кратном requestInterval', () => {
-      const gen = new RequestGenerator(config, 42)
-      const request = gen.generate(8, [])
-      expect(request).not.toBeNull()
+    it('не генерирует запросы между интервалами', () => {
+      const gen = makeGenerator()
+      const requests = gen.tick(1)
+      expect(requests).toHaveLength(0)
     })
 
-    it('генерирует запрос на тике 0', () => {
-      const gen = new RequestGenerator(config, 42)
-      const request = gen.generate(0, [])
-      expect(request).not.toBeNull()
-    })
-  })
-
-  describe('тип запроса allocate', () => {
-    it('генерирует allocate, если нет аллоцированных блоков', () => {
-      const gen = new RequestGenerator(config, 42)
-      const request = gen.generate(0, [])
-      expect(request).not.toBeNull()
-      expect(request?.type).toBe('allocate')
-    })
-
-    it('allocate содержит programId из конфига и корректный size', () => {
-      const gen = new RequestGenerator(config, 42)
-      const request = gen.generate(0, [])
-      if (request?.type !== 'allocate') {
-        throw new Error('Ожидался allocate-запрос')
+    it('allocate содержит shape из availableShapes', () => {
+      const gen = makeGenerator()
+      const config = getLevelConfig(1)
+      const requests = gen.tick(config.requestInterval)
+      const alloc = requests.find((r) => r.type === 'allocate')
+      expect(alloc).toBeDefined()
+      if (alloc && alloc.type === 'allocate') {
+        expect(alloc.payload.shape.length).toBeGreaterThan(0)
+        expect(alloc.payload.process).toBeTruthy()
+        expect(alloc.payload.pointer).toMatch(/^0x[0-9A-F]{4}$/)
+        expect(alloc.payload.createdAtTick).toBe(config.requestInterval)
       }
-      expect(config.programIds).toContain(request.payload.programId)
-      expect(request.payload.size).toBeGreaterThanOrEqual(config.minBlockSize)
-      expect(request.payload.size).toBeLessThanOrEqual(config.maxBlockSize)
     })
   })
 
-  describe('тип запроса free', () => {
-    it('может генерировать free, если есть аллоцированные блоки', () => {
-      // Прогоняем много тиков — рано или поздно должен выбрать free
-      const gen = new RequestGenerator(config, 123)
-      const allocatedBlockIds = ['block-1', 'block-2', 'block-3']
-      let foundFree = false
+  describe('free запросы', () => {
+    it('генерирует free для существующего блока', () => {
+      const gen = makeGenerator()
+      
+      // Регистрируем блок чтобы free мог на него ссылаться
+      gen.registerAllocated('block-1', 'ptr-1')
 
-      for (let tick = 0; tick <= 200; tick += config.requestInterval) {
-        const request = gen.generate(tick, allocatedBlockIds)
-        if (request?.type === 'free') {
-          foundFree = true
-          expect(allocatedBlockIds).toContain(request.payload.blockId)
+      // Тикаем до генерации
+      let freeFound = false
+      for (let t = 1; t <= 100; t++) {
+        const requests = gen.tick(t)
+        const free = requests.find((r) => r.type === 'free')
+        if (free) {
+          freeFound = true
+          if (free.type === 'free') {
+            expect(free.payload.pointer).toBeTruthy()
+            expect(free.payload.deadline).toBeGreaterThan(t)
+          }
           break
         }
       }
-
-      expect(foundFree).toBe(true)
+      expect(freeFound).toBe(true)
     })
   })
 
-  describe('детерминированность', () => {
-    it('одинаковый seed даёт одинаковую последовательность', () => {
-      const gen1 = new RequestGenerator(config, 42)
-      const gen2 = new RequestGenerator(config, 42)
-      const allocatedBlockIds = ['block-1']
-
-      for (let tick = 0; tick <= 80; tick += config.requestInterval) {
-        const r1 = gen1.generate(tick, allocatedBlockIds)
-        const r2 = gen2.generate(tick, allocatedBlockIds)
-        expect(r1).toEqual(r2)
-      }
-    })
-
-    it('разные seed дают разные последовательности', () => {
-      const gen1 = new RequestGenerator(config, 42)
-      const gen2 = new RequestGenerator(config, 999)
-
-      const results1: unknown[] = []
-      const results2: unknown[] = []
-
-      for (let tick = 0; tick <= 80; tick += config.requestInterval) {
-        results1.push(gen1.generate(tick, []))
-        results2.push(gen2.generate(tick, []))
-      }
-
-      // Хотя бы один запрос должен отличаться
-      const allEqual = results1.every(
-        (r, i) => JSON.stringify(r) === JSON.stringify(results2[i]),
-      )
-      expect(allEqual).toBe(false)
-    })
-  })
-
-  describe('уникальные id запросов', () => {
-    it('каждый запрос имеет уникальный id', () => {
-      const gen = new RequestGenerator(config, 42)
-      const ids = new Set<string>()
-
-      for (let tick = 0; tick <= 80; tick += config.requestInterval) {
-        const request = gen.generate(tick, [])
-        if (request) {
-          expect(ids.has(request.payload.id)).toBe(false)
-          ids.add(request.payload.id)
+  describe('pointer loss', () => {
+    it('Level 1 не теряет pointer (pointerLossChance = 0)', () => {
+      const gen = makeGenerator(1)
+      gen.registerAllocated('b1', 'p1')
+      const events: string[] = []
+      for (let t = 1; t <= 200; t++) {
+        const requests = gen.tick(t)
+        for (const r of requests) {
+          if (r.type === 'allocate') events.push('alloc')
         }
       }
+      // Нет pointer loss на уровне 1
+      expect(gen.getLostPointers()).toHaveLength(0)
+    })
+  })
+
+  describe('maxQueueSize', () => {
+    it('setQueueSize влияет на overflow-детекцию', () => {
+      const gen = makeGenerator()
+      gen.setCurrentQueueSize(100) // заведомо больше maxQueueSize
+      expect(gen.isQueueOverflow()).toBe(true)
+    })
+
+    it('нет overflow при нормальном размере', () => {
+      const gen = makeGenerator()
+      gen.setCurrentQueueSize(1)
+      expect(gen.isQueueOverflow()).toBe(false)
     })
   })
 })

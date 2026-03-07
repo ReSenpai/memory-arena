@@ -1,184 +1,185 @@
 import { createStore } from 'zustand/vanilla'
 import { useStore } from 'zustand'
+import { GameSession, type SessionSnapshot } from '../game/GameSession'
+import { TOTAL_LEVELS } from '../game/LevelManager'
 import type {
-  AllocationResult,
+  CellContent,
+  AllocatedBlock,
+  GarbageBlock,
+  GameRequest,
+  PlaceResult,
   FreeResult,
-  MemoryBlock,
-  MemoryMetrics,
-  MemoryRequest,
+  MoveGarbageResult,
 } from '../domain/types'
-import type { SessionState } from '../game/GameSession'
-import type { FinishReason } from '../game/GameSession'
-import { GameSession } from '../game/GameSession'
-import { getLevelConfig } from '../game/LevelManager'
 
-/**
- * Состояние Zustand store.
- * Плоская структура — данные из SessionSnapshot + actions.
- */
 export type GameStore = {
-  // --- Данные ---
-  sessionState: SessionState
-  currentTick: number
-  blocks: ReadonlyArray<MemoryBlock>
-  pendingRequests: MemoryRequest[]
+  // State
+  sessionState: 'idle' | 'playing' | 'paused' | 'finished'
+  finishReason: 'win' | 'lose' | null
   score: number
   stability: number
-  metrics: MemoryMetrics | null
+  targetScore: number
   levelId: number
-  /** Последнее сообщение об ошибке (авто-очищается в UI) */
+  currentTick: number
+  gridSnapshot: CellContent[][] | null
+  gridRows: number
+  gridCols: number
+  allocatedBlocks: AllocatedBlock[]
+  garbageBlocks: GarbageBlock[]
+  pendingRequests: GameRequest[]
+  selectedRequestId: string | null
+  selectedRotation: number
+  selectedGarbageId: string | null
   lastError: string | null
-  /** Причина завершения: win/lose/null */
-  finishReason: FinishReason
-  /** Целевое количество тиков для текущего уровня */
-  targetTicks: number
-  /** Порог утечки (тиков) */
-  leakThreshold: number
 
-  // --- Actions ---
+  // Actions
   startGame: (levelId: number) => void
   doTick: () => void
-  allocate: (
-    requestId: string,
-  ) => AllocationResult | { success: false; reason: 'request-not-found' }
-  free: (
-    requestId: string,
-  ) => FreeResult | { success: false; reason: 'request-not-found' }
   pause: () => void
   resume: () => void
-  clearError: () => void
-  /** Перейти на следующий уровень (levelId + 1) */
+  selectRequest: (requestId: string | null) => void
+  rotateSelected: () => void
+  placeBlock: (requestId: string, row: number, col: number, rotation: number) => PlaceResult
+  freeBlock: (freeRequestId: string, blockId: string) => FreeResult
+  moveGarbage: (garbageId: string, row: number, col: number) => MoveGarbageResult
+  selectGarbage: (garbageId: string | null) => void
+  resolvePointer: (pointer: string) => string | null
   nextLevel: () => void
+  clearError: () => void
 }
 
-/** Ссылка на текущую GameSession (хранится вне store — мутабельный объект) */
 let session: GameSession | null = null
 
-/** Извлекает плоский snapshot из GameSession и обновляет store */
 function syncFromSession(
   set: (partial: Partial<GameStore>) => void,
-  levelId: number,
 ): void {
   if (!session) return
-  const snap = session.getSnapshot()
+  const snap: SessionSnapshot = session.getSnapshot()
   set({
     sessionState: snap.state,
-    currentTick: snap.tick,
-    blocks: snap.blocks,
-    pendingRequests: snap.pendingRequests,
+    finishReason: snap.finishReason,
     score: snap.score,
     stability: snap.stability,
-    metrics: snap.metrics,
-    levelId,
-    finishReason: snap.finishReason,
-    targetTicks: snap.targetTicks,
-    leakThreshold: snap.leakThreshold,
+    targetScore: snap.targetScore,
+    currentTick: snap.currentTick,
+    gridSnapshot: snap.gridSnapshot,
+    gridRows: snap.gridRows,
+    gridCols: snap.gridCols,
+    allocatedBlocks: snap.allocatedBlocks,
+    garbageBlocks: snap.garbageBlocks,
+    pendingRequests: snap.pendingRequests,
+    levelId: snap.levelId,
   })
 }
 
-/**
- * Фабрика для создания store.
- * Используем `createStore` (vanilla) для тестируемости без React.
- * Для React-компонентов — `useGameStore`.
- */
 export function createGameStore() {
-  // Сбрасываем session при создании нового store (для тестов)
-  session = null
-
-  return createStore<GameStore>()((set, get) => ({
-    // --- Начальное состояние ---
+  return createStore<GameStore>()((set) => ({
     sessionState: 'idle',
-    currentTick: 0,
-    blocks: [],
-    pendingRequests: [],
+    finishReason: null,
     score: 0,
     stability: 1,
-    metrics: null,
+    targetScore: 0,
     levelId: 1,
+    currentTick: 0,
+    gridSnapshot: null,
+    gridRows: 0,
+    gridCols: 0,
+    allocatedBlocks: [],
+    garbageBlocks: [],
+    pendingRequests: [],
+    selectedRequestId: null,
+    selectedRotation: 0,
+    selectedGarbageId: null,
     lastError: null,
-    finishReason: null,
-    targetTicks: 0,
-    leakThreshold: 30,
-
-    // --- Actions ---
 
     startGame(levelId: number) {
-      const config = getLevelConfig(levelId)
-      const seed = Date.now()
-      session = new GameSession(config, seed)
+      session = new GameSession(levelId, Date.now())
       session.start()
-      syncFromSession(set, levelId)
+      syncFromSession(set)
     },
 
     doTick() {
       if (!session) return
       session.tick()
-      syncFromSession(set, get().levelId)
-    },
-
-    allocate(requestId: string) {
-      if (!session) {
-        return { success: false as const, reason: 'request-not-found' as const }
-      }
-      const result = session.allocate(requestId)
-      syncFromSession(set, get().levelId)
-      if (!result.success) {
-        const messages: Record<string, string> = {
-          'no-space': 'Недостаточно свободной памяти!',
-          'no-fit': 'Нет подходящего блока нужного размера!',
-          'request-not-found': 'Запрос не найден',
-        }
-        set({ lastError: messages[result.reason] ?? 'Ошибка аллокации' })
-      }
-      return result
-    },
-
-    free(requestId: string) {
-      if (!session) {
-        return { success: false as const, reason: 'request-not-found' as const }
-      }
-      const result = session.free(requestId)
-      syncFromSession(set, get().levelId)
-      if (!result.success) {
-        const messages: Record<string, string> = {
-          'not-found': 'Блок не найден!',
-          'double-free': 'Двойное освобождение!',
-          'request-not-found': 'Запрос не найден',
-        }
-        set({ lastError: messages[result.reason] ?? 'Ошибка освобождения' })
-      }
-      return result
-    },
-
-    clearError() {
-      set({ lastError: null })
+      syncFromSession(set)
     },
 
     pause() {
       if (!session) return
       session.pause()
-      syncFromSession(set, get().levelId)
+      syncFromSession(set)
     },
 
     resume() {
       if (!session) return
       session.resume()
-      syncFromSession(set, get().levelId)
+      syncFromSession(set)
+    },
+
+    selectRequest(requestId: string | null) {
+      set({ selectedRequestId: requestId, selectedRotation: 0, selectedGarbageId: null })
+    },
+
+    rotateSelected() {
+      set((state) => ({
+        selectedRotation: (state.selectedRotation + 1) % 4,
+      }))
+    },
+
+    placeBlock(requestId, row, col, rotation) {
+      if (!session) return { success: false as const, reason: 'request-not-found' as const }
+      const result = session.placeBlock(requestId, row, col, rotation)
+      syncFromSession(set)
+      if (!result.success) {
+        set({ lastError: `Ошибка размещения: ${result.reason}` })
+      } else {
+        set({ selectedRequestId: null, selectedRotation: 0 })
+      }
+      return result
+    },
+
+    freeBlock(freeRequestId, blockId) {
+      if (!session) return { success: false as const, reason: 'request-not-found' as const }
+      const result = session.freeBlock(freeRequestId, blockId)
+      syncFromSession(set)
+      if (!result.success) {
+        set({ lastError: `Ошибка освобождения: ${result.reason}` })
+      }
+      return result
+    },
+
+    moveGarbage(garbageId, row, col) {
+      if (!session) return { success: false as const, reason: 'not-found' as const }
+      const result = session.moveGarbage(garbageId, row, col)
+      syncFromSession(set)
+      return result
+    },
+
+    selectGarbage(garbageId: string | null) {
+      set({ selectedGarbageId: garbageId, selectedRequestId: null, selectedRotation: 0 })
+    },
+
+    resolvePointer(pointer: string) {
+      if (!session) return null
+      return session.resolvePointer(pointer)
     },
 
     nextLevel() {
-      const current = get().levelId
-      const next = current + 1
-      if (next > 5) return
-      get().startGame(next)
+      const currentLevel = session?.getSnapshot().levelId ?? 1
+      const next = Math.min(currentLevel + 1, TOTAL_LEVELS)
+      session = new GameSession(next, Date.now())
+      session.start()
+      syncFromSession(set)
+    },
+
+    clearError() {
+      set({ lastError: null })
     },
   }))
 }
 
-/** Синглтон store для приложения */
 export const gameStore = createGameStore()
 
-/** React-хук для подписки на store */
 export function useGameStore(): GameStore
 export function useGameStore<T>(selector: (state: GameStore) => T): T
 export function useGameStore<T>(selector?: (state: GameStore) => T) {
