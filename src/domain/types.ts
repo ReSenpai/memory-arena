@@ -90,7 +90,7 @@ export type PlaceResult =
 
 export type FreeResult =
   | { success: true; freedCells: Cell[] }
-  | { success: false; reason: 'pointer-mismatch' | 'not-found' | 'request-not-found' }
+  | { success: false; reason: 'pointer-mismatch' | 'not-found' | 'request-not-found' | 'double-free' }
 
 export type MoveGarbageResult =
   | { success: true }
@@ -123,3 +123,4 @@ export type CellContent =
   | { type: 'free' }
   | { type: 'allocated'; blockId: BlockId }
   | { type: 'garbage'; blockId: BlockId }
+  | { type: 'dissolving'; blockId: BlockId }

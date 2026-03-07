@@ -2,20 +2,27 @@ import { describe, it, expect } from 'vitest'
 import { PointerRegistry } from '../../domain/PointerRegistry'
 
 describe('PointerRegistry — реестр указателей', () => {
-  describe('generatePointer', () => {
-    it('генерирует hex-строку вида 0xXXXX', () => {
-      const reg = new PointerRegistry()
-      const ptr = reg.generatePointer()
+  describe('pointerForCell', () => {
+    it('генерирует hex-строку вида 0xXXXX из позиции ячейки', () => {
+      const ptr = PointerRegistry.pointerForCell(0, 0, 8)
       expect(ptr).toMatch(/^0x[0-9A-F]{4}$/)
+      expect(ptr).toBe('0x0000')
     })
 
-    it('генерирует уникальные указатели', () => {
-      const reg = new PointerRegistry()
+    it('генерирует уникальные адреса для разных ячеек', () => {
       const pointers = new Set<string>()
-      for (let i = 0; i < 100; i++) {
-        pointers.add(reg.generatePointer())
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          pointers.add(PointerRegistry.pointerForCell(r, c, 8))
+        }
       }
-      expect(pointers.size).toBe(100)
+      expect(pointers.size).toBe(64)
+    })
+
+    it('одна и та же ячейка всегда даёт один и тот же адрес', () => {
+      const p1 = PointerRegistry.pointerForCell(3, 5, 8)
+      const p2 = PointerRegistry.pointerForCell(3, 5, 8)
+      expect(p1).toBe(p2)
     })
   })
 

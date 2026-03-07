@@ -1,360 +1,229 @@
-# Memory Arena v2 — План редизайна (TDD)
+# Memory Arena v3 — Phaser Migration Plan (TDD)
 
-Редизайн: линейная память → grid-доска, drag & drop, фигурные блоки, garbage/дефрагментация.
-Подход: **Red → Green → Refactor** на каждом шаге.
+Миграция: React + Canvas 2D → **Phaser 3** game engine.
+Drag & drop (зажатие мыши) вместо кликов. Генерируемые текстуры и звуки.
+Видимые указатели на блоках. Подход: **Red → Green → Refactor**.
 
 ---
 
-## Что переиспользуем из v1
+## Что переиспользуем
 
 | Модуль | Статус | Примечание |
 |--------|--------|------------|
-| Vite + React + TS + Vitest + ESLint + Prettier | ✅ оставляем | Инфра не меняется |
-| `SeededRandom` | ✅ оставляем | Детерминированный рандом — тот же |
-| `GameLoop` | ✅ оставляем | rAF + tick accumulator — тот же |
-| Zustand store паттерн | ✅ адаптируем | Паттерн `syncFromSession` — тот же, содержимое меняется |
-| CSS тема / палитра | ✅ адаптируем | Тёмная тема та же, layout другой |
-| `GameOverlay` | ✅ адаптируем | Структура та же, условия win/lose меняются |
-| `ErrorNotification` | ✅ оставляем | Тот же тост |
-| `.github/workflows/deploy.yml` | ✅ оставляем | CI/CD тот же |
+| `domain/*` (6 файлов) | ✅ оставляем | Чистая логика, 0 зависимостей от UI |
+| `game/GameSession.ts` | ✅ оставляем | Фасад — тот же API |
+| `game/LevelManager.ts` | ✅ оставляем | 5 уровней |
+| `game/RequestGenerator.ts` | ✅ оставляем | Генерация запросов |
+| `game/SeededRandom.ts` | ✅ оставляем | Детерминированный RNG |
+| `__tests__/domain/*` (6 файлов) | ✅ оставляем | 82 теста |
+| `__tests__/game/*` (3 файла) | ✅ оставляем | 32 теста (без GameLoop) |
+| `__tests__/smoke.test.ts` | ✅ оставляем | 1 тест |
+| `.github/workflows/deploy.yml` | ✅ оставляем | CI/CD |
+| Vite + TypeScript + Vitest + ESLint + Prettier | ✅ оставляем | Инфра |
 
-## Что удаляем / переписываем полностью
+## Что удаляем
 
 | Модуль | Причина |
 |--------|---------|
-| `domain/types.ts` | Новая модель: grid cells, shapes, pointers, processes |
-| `domain/MemoryManager.ts` | Линейный allocator → `MemoryGrid` (2D) |
-| `domain/Allocator.ts` | Стратегии не нужны — игрок сам размещает |
-| `domain/ErrorDetector.ts` | Логика утечек другая (таймер на free, pointer loss) |
-| `domain/Scorer.ts` | Новая формула очков (size×10, дефраг бонус и т.д.) |
-| `game/types.ts` | Новые `LevelConfig` (grid size, target score) |
-| `game/GameSession.ts` | Новый фасад с grid + pointers + garbage |
-| `game/RequestGenerator.ts` | Генерирует shaped-блоки + pointer loss события |
-| `game/LevelManager.ts` | 5 уровней с grid-размерами и target score |
-| `store/gameStore.ts` | Новые actions (place, rotate, drag, free-by-pointer) |
-| `ui/App.tsx` | Новый layout (stats сверху, grid центр, queue внизу) |
-| `ui/MemoryCanvas.tsx` | Grid-рендер вместо линейного + drag & drop |
-| `ui/RequestQueue.tsx` | Горизонтальная очередь внизу + drag free карточек |
-| `ui/StatsPanel.tsx` | Горизонтальная панель сверху |
-| `ui/GameControls.tsx` | Адаптация под новый layout |
-| `ui/HelpModal.tsx` | Новый контент — grid, фигуры, garbage, дефрагментация |
-| Все тесты | Переписываем под новые типы и логику |
+| `react`, `react-dom`, `zustand` | Заменяет Phaser |
+| `@vitejs/plugin-react`, `@types/react*`, `eslint-plugin-react-hooks` | Больше не нужны |
+| `src/store/gameStore.ts` | Zustand → Phaser event bus |
+| `src/ui/*` (10 файлов) | React → Phaser scenes |
+| `src/main.tsx` | → `src/main.ts` (Phaser.Game) |
+| `__tests__/store/gameStore.test.ts` | Store удалён |
+| `src/game/GameLoop.ts` + тест | Phaser имеет свой game loop |
+
+## Что добавляем
+
+| Модуль | Назначение |
+|--------|------------|
+| `phaser` | Игровой движок |
+| `src/main.ts` | Точка входа: Phaser.Game config |
+| `src/scenes/BootScene.ts` | Загрузка ассетов (генерация текстур + звуков) |
+| `src/scenes/GameScene.ts` | Основная сцена: grid + HUD + drag & drop |
+| `src/assets/TextureGenerator.ts` | Генерация всех текстур через Phaser Graphics |
+| `src/assets/SoundGenerator.ts` | Генерация звуков через Web Audio API |
 
 ---
 
-## Checkpoint 0: Очистка и подготовка
-- [ ] Удалить старые domain/ файлы (types, MemoryManager, Allocator, ErrorDetector, Scorer)
-- [ ] Удалить старые game/ файлы (types, GameSession, RequestGenerator, LevelManager)
-- [ ] Удалить все тесты из `__tests__/domain/` и `__tests__/game/` и `__tests__/store/`
-- [ ] Оставить: `SeededRandom.ts`, `GameLoop.ts`, smoke-тест
-- [ ] Очистить `gameStore.ts` до пустого шаблона
-- [ ] Очистить UI компоненты до заглушек
-- [ ] `pnpm test` и `pnpm run lint` проходят на пустом проекте
+## Решение проблемы указателей
 
-**Результат:** чистый проект с работающей инфрой, готов к новому domain-слою.
+Проблема: FREE-карточка говорит `free 0x0042`, но непонятно какой блок это.
 
----
-
-## Checkpoint 1: Новые типы и модель данных
-- [ ] `domain/types.ts` — новые типы:
-  - `Cell` — ячейка grid (`{ row, col }`)
-  - `Shape` — фигура блока (массив `Cell[]` — относительные координаты)
-  - `BlockId`, `Pointer` (branded string, hex вида `0xA3F2`)
-  - `ProcessName` — строка (`Chrome`, `Firefox`, `VSCode` и т.д.)
-  - `AllocatedBlock` — `{ id, pointer, process, shape, cells, placedAt }` (cells — абсолютные координаты на grid)
-  - `GarbageBlock` — `{ id, shape, cells }` (можно двигать)
-  - `AllocateRequest` — `{ id, process, pointer, shape, createdAtTick }`
-  - `FreeRequest` — `{ id, pointer, deadline, createdAtTick }` (deadline = тик, после которого block → garbage)
-  - `GameRequest` — tagged union allocate | free
-  - `GridMetrics` — `{ totalCells, usedCells, freeCells, garbageCells, fragmentation }`
-- [ ] Тесты: типы компилируются, можно создать экземпляры
-
-**Результат:** полная типовая система v2.
+Решение:
+1. **Указатель на блоке** — каждый allocated блок на сетке отображает свой pointer (`0xXXXX`) как текст внутри ячеек.
+2. **Подсветка при drag** — когда игрок начинает перетаскивать FREE-карточку, целевой блок на сетке **пульсирует** ярким свечением + показывает соединительную линию.
+3. **Цветовая связь** — FREE-карточка и целевой блок имеют одинаковый цветовой акцент.
+4. **Pointer loss** — если указатель потерян, подсветка НЕ появляется. Игрок должен найти блок вручную по имени процесса.
 
 ---
 
-## Checkpoint 2: Shapes — фигуры блоков
-- [ ] `domain/Shapes.ts`:
-  - Предопределённые фигуры: линия-2, линия-3, линия-4, L-форма, T-форма, квадрат 2×2, Z-форма
-  - `rotateShape(shape, times)` — поворот на 90° × times
-  - `normalizeShape(shape)` — сдвинуть к (0,0)
-  - `getShapeBounds(shape)` — ширина/высота
-- [ ] Тесты: поворот, нормализация, bounds для каждой фигуры
-- [ ] Набор фигур по уровням: Level 1 — простые (линии), Level 4-5 — сложные (L, T, Z)
+## Drag & Drop механика
 
-**Результат:** система фигур с поворотами, покрыта тестами.
+### ALLOC (размещение блока)
+1. Игрок **зажимает** ALLOC-карточку в очереди
+2. **Ghost-фигура** появляется и следует за курсором
+3. При наведении на сетку — превью (зелёный = можно, красный = нельзя)
+4. Клавиша **R** вращает фигуру во время перетаскивания
+5. **Отпускание** на валидной позиции → размещение блока
+6. **Отпускание** вне сетки → отмена
 
----
+### FREE (освобождение блока)
+1. Игрок **зажимает** FREE-карточку
+2. Целевой блок на сетке **пульсирует** (если pointer не потерян)
+3. Игрок перетаскивает FREE-карточку на пульсирующий блок
+4. **Отпускание** на правильном блоке → освобождение
+5. **Отпускание** на неправильном / вне сетки → отмена
 
-## Checkpoint 3: MemoryGrid — 2D доска
-- [ ] `domain/MemoryGrid.ts`:
-  - Конструктор: `new MemoryGrid(rows, cols)` — пустая сетка
-  - `canPlace(shape, row, col)` — проверка: все ячейки внутри bounds и свободны
-  - `place(block)` — разместить allocated block на grid (записать id в ячейки)
-  - `remove(blockId)` — освободить ячейки блока
-  - `moveGarbage(garbageId, newRow, newCol)` — переместить garbage блок
-  - `getCell(row, col)` — состояние ячейки (`null` | blockId | garbageId)
-  - `getMetrics()` — `GridMetrics`
-  - `getSnapshot()` — копия состояния grid для рендера
-- [ ] Тесты: place, remove, canPlace (коллизии, out of bounds), moveGarbage, metrics
-
-**Результат:** 2D memory grid, полностью тестируемый, 0 зависимостей.
+### Garbage (дефрагментация)
+1. Игрок **зажимает** garbage-блок на сетке
+2. Блок следует за курсором
+3. **Отпускание** на пустой ячейке → перемещение
+4. **Отпускание** на занятой / вне сетки → возврат на место
 
 ---
 
-## Checkpoint 4: PointerRegistry — реестр указателей
-- [ ] `domain/PointerRegistry.ts`:
-  - `generatePointer()` — уникальный hex pointer (`0xA3F2`)
-  - `register(pointer, blockId)` — связать pointer с block
-  - `resolve(pointer)` — получить blockId по pointer
-  - `unregister(pointer)` — удалить связь
-  - `losePointer(pointer)` — пометить pointer как lost (block → garbage)
-  - `getAll()` — все зарегистрированные пары
-- [ ] Тесты: генерация, регистрация, resolve, unregister, lose
+## Генерируемые ассеты
 
-**Результат:** система указателей, имитирующая реальные pointer'ы в куче.
+### Текстуры (Phaser Graphics → generateTexture)
 
----
+| Ключ | Описание | Размер |
+|------|----------|--------|
+| `cell-free` | Тёмная ячейка с тонкой рамкой | 32×32 |
+| `cell-alloc-{0..7}` | 8 цветов процессов | 32×32 |
+| `cell-garbage` | Коричневая ячейка с диагональным паттерном | 32×32 |
+| `cell-ghost-ok` | Зелёный полупрозрачный | 32×32 |
+| `cell-ghost-bad` | Красный полупрозрачный | 32×32 |
+| `cell-highlight` | Ярко-зелёная пульсирующая рамка | 32×32 |
+| `particle-white` | Белая частица 4×4 для эффектов | 4×4 |
 
-## Checkpoint 5: Scorer v2 — новая формула очков
-- [ ] `domain/Scorer.ts` (переписать):
-  - `onAllocate(size)` → `+size × 10`
-  - `onFree()` → `+10`
-  - `onDefragMove()` → `+5` (бонус за дефрагментацию)
-  - `onQuickAction(ticksSinceRequest)` → бонус за скорость
-  - `onMissedFree()` → `−20`
-  - `onWrongFree()` → `−5`
-  - `onFragmentationPenalty(fragmentation)` → постепенный штраф
-  - `onQueueOverflow()` → штраф стабильности
-  - Стабильность: 0–1, утечки снижают на 0.1
-- [ ] Тесты: все сценарии начисления/штрафов
+### Звуки (Web Audio oscillator → ArrayBuffer)
 
-**Результат:** система очков v2.
+| Ключ | Описание | Параметры |
+|------|----------|-----------|
+| `sfx-place` | Размещение блока | sine 440→880, 120ms |
+| `sfx-free` | Освобождение | sine 660→330, 150ms |
+| `sfx-error` | Ошибка / неверный drop | square 200Hz, 200ms |
+| `sfx-garbage` | Конвертация в мусор | sawtooth 100→50, 300ms |
+| `sfx-tick` | Тик таймера | sine 1000Hz, 30ms |
+| `sfx-win` | Победа | C-E-G-C арпеджио, 500ms |
+| `sfx-lose` | Поражение | G-E-C нисходящее, 400ms |
+| `sfx-drag` | Начало перетаскивания | sine 500Hz, 50ms |
 
 ---
 
-## Checkpoint 6: RequestGenerator v2 — фигурные запросы
-- [ ] `game/types.ts` — новый `LevelConfig`:
-  - `gridRows`, `gridCols` (вместо `memorySize`)
-  - `targetScore` (вместо `targetTicks`)
-  - `availableShapes` — какие фигуры доступны на уровне
-  - `requestInterval`, `freeDeadlineTicks`
-  - `pointerLossChance` (0 для Level 1-2, >0 для Level 3+)
-  - `maxQueueSize`
-  - `processNames[]`
-- [ ] `game/LevelManager.ts` — 5 уровней:
-  - Level 1: 8×8, простые формы, 500 очков
-  - Level 2: 10×10, больше процессов, 1000 очков
-  - Level 3: 12×12, pointer loss, 2000 очков
-  - Level 4: 16×16, сложные фигуры, 3000 очков
-  - Level 5: 20×20, хаос, 5000 очков
-- [ ] `game/RequestGenerator.ts` (переписать):
-  - Генерирует `AllocateRequest` с shape из `availableShapes`
-  - Генерирует `FreeRequest` с deadline
-  - Случайный pointer loss (с шансом `pointerLossChance`)
-  - Учитывает `maxQueueSize`
-- [ ] Тесты: генерация запросов, pointer loss, deadlines, конфигурация уровней
+## Чекпоинты
 
-**Результат:** генератор запросов v2 с фигурами, deadlines и pointer loss.
-
----
-
-## Checkpoint 7: GarbageManager — управление утечками
-- [ ] `domain/GarbageManager.ts`:
-  - `convertToGarbage(block)` — allocated block → garbage block (pointer теряется)
-  - `checkExpiredFrees(freeRequests, currentTick)` — возвращает список блоков, чей deadline истёк
-  - `handlePointerLoss(pointer, registry, grid)` — block → garbage, pointer → lost
-  - `getGarbageBlocks()` — все garbage блоки
-- [ ] Тесты: конвертация, expired frees, pointer loss
-
-**Результат:** менеджер garbage блоков.
-
----
-
-## Checkpoint 8: GameSession v2 — новый фасад
-- [ ] `game/GameSession.ts` (переписать):
-  - Управляет: `MemoryGrid`, `PointerRegistry`, `RequestGenerator`, `Scorer`, `GarbageManager`
-  - State machine: idle → playing ↔ paused → finished
-  - **`tick()`**: генерация запросов, проверка deadlines, проверка win (score ≥ targetScore) / lose (stability ≤ 0), фрагментация штраф
-  - **`placeBlock(requestId, row, col, rotation)`**: взять allocate request → повернуть фигуру → проверить canPlace → разместить
-  - **`freeBlock(freeRequestId, targetBlockId)`**: проверить pointer совпадение → remove block → unregister pointer
-  - **`moveGarbage(garbageId, newRow, newCol)`**: перемещение garbage блока на grid
-  - **`rotatePreview(requestId)`**: показать превью фигуры повёрнутой
-  - **`getSnapshot()`**: полное состояние для UI
-- [ ] `SessionSnapshot` v2: grid data, allocated blocks, garbage blocks, pending requests, score, stability, процессы, queue
-- [ ] Тесты: tick, placeBlock (success/collision), freeBlock (match/mismatch), moveGarbage, win/lose, deadlines
-
-**Результат:** полностью рабочая игровая сессия v2, покрыта тестами.
-
----
-
-## Checkpoint 9: Zustand Store v2
-- [ ] `store/gameStore.ts` (переписать):
-  - State: grid snapshot, blocks, garbage, requests, score, stability, queue, processes, selectedRequest, dragState
-  - Actions:
-    - `startGame(levelId)`, `doTick()`, `pause()`, `resume()`
-    - `selectRequest(requestId)` — выбрать запрос из очереди
-    - `placeBlock(row, col, rotation)` — разместить выбранный allocate
-    - `freeBlock(freeRequestId, blockId)` — применить free
-    - `moveGarbage(garbageId, row, col)` — переместить garbage
-    - `rotateSelected()` — повернуть выбранную фигуру
-    - `nextLevel()`, `clearError()`
-  - `syncFromSession()` — паттерн из v1
-- [ ] Тесты: все actions, sync, start/stop lifecycle
-
-**Результат:** store, связывающий game → UI.
-
----
-
-## Checkpoint 10: Базовый UI Layout
-- [ ] Новый layout `App.tsx`:
-
-```
-+----------------------------------+
-| Score | Stability | Processes    |  ← StatsBar (горизонтальный, сверху)
-+----------------------------------+
-|                                  |
-|          MEMORY GRID             |  ← GridCanvas (центр, основная область)
-|                                  |
-+----------------------------------+
-| [alloc][alloc][free][alloc]      |  ← RequestQueue (горизонтальный, внизу)
-+----------------------------------+
-```
-
-- [ ] `StatsBar.tsx` — горизонтальная панель: score, stability bar, активные процессы, уровень
-- [ ] `RequestQueue.tsx` — горизонтальная очередь запросов внизу
-- [ ] `GameControls.tsx` — адаптировать под новый layout (в StatsBar или отдельно)
-- [ ] `App.css` — полностью новый layout (сохранить тёмную палитру)
-- [ ] Заглушки для GridCanvas
-
-**Результат:** рабочий layout с заглушками, theme в тон v1.
-
----
-
-## Checkpoint 11: GridCanvas — отрисовка grid-доски
-- [ ] `ui/GridCanvas.tsx`:
-  - Canvas 2D рендер grid'а (сетка линий)
-  - Отрисовка allocated блоков (цвет по процессу)
-  - Отрисовка garbage блоков (другой цвет/паттерн)
-  - Отрисовка свободных ячеек
-  - Hover-подсветка ячейки
-  - DPR-aware, ResizeObserver
-  - Легенда цветов
-- [ ] Тест: компонент рендерится без ошибок
-
-**Результат:** рабочая визуализация grid-доски.
-
----
-
-## Checkpoint 12: Drag & Drop — размещение блоков
-- [ ] Drag allocate-запросов из очереди на grid:
-  - Клик по запросу в очереди → выделение + превью фигуры
-  - Наведение на grid → ghost-превью фигуры (зелёный если можно, красный если нельзя)
-  - Клик на grid → разместить (если `canPlace`)
-  - Клавиша `R` → поворот фигуры на 90°
-- [ ] Drag free-запросов на блоки:
-  - Клик по free-запросу → подсветить matching block (по pointer)
-  - Клик на matching block → free
-  - Неверный блок → ошибка "pointer mismatch"
-- [ ] Drag garbage блоков:
-  - Клик на garbage → выделить
-  - Клик на свободное место → переместить
-  - `R` → повернуть garbage
-
-**Результат:** полная drag & drop механика.
-
----
-
-## Checkpoint 13: Free Timers + Garbage конвертация
-- [ ] Визуальный таймер на free-запросах в очереди (progress bar / обратный отсчёт)
-- [ ] По истечении deadline: free исчезает, block → garbage, штраф (анимация)
-- [ ] Pointer loss событие: уведомление «⚠ pointer lost», block → garbage
-- [ ] Анимация конвертации block → garbage (смена цвета, пульсация)
-- [ ] Queue overflow: если очередь > `maxQueueSize` → штраф стабильности
-
-**Результат:** полный цикл утечек памяти.
-
----
-
-## Checkpoint 14: Полный игровой цикл
-- [ ] `useGameLoop` подключен
-- [ ] Tick → генерация → размещение → free → garbage → score check
-- [ ] Win: score ≥ targetScore → GameOverlay + next level
-- [ ] Lose: stability ≤ 0 → GameOverlay + restart
-- [ ] Прогрессия: Level 1→5
-- [ ] GameOverlay адаптирован
-- [ ] ErrorNotification работает
-- [ ] Всё интегрировано, играбельно от начала до конца
-
-**Результат:** полностью играбельная игра v2.
-
----
-
-## Checkpoint 15: HelpModal v2 + README
-- [ ] `HelpModal.tsx` — новый контент:
-  - Grid-доска и ячейки (вместо линейной памяти)
-  - Фигурные блоки и поворот (R)
-  - Drag & drop механика (allocate, free, garbage)
-  - Pointer'ы и их потеря
-  - Garbage блоки и дефрагментация
-  - Таблица ошибок и штрафов (v2)
-  - Описание 5 уровней (v2)
-  - Советы
-- [ ] README.md — обновить описание, скриншоты
-
-**Результат:** полная документация v2.
-
----
-
-## Checkpoint 16: Polish и финальная шлифовка
-- [ ] Анимации: размещение блока (flash), free (исчезновение), garbage конвертация
-- [ ] Звуковые эффекты (опционально)
-- [ ] Responsive layout (мобильный, планшет)
-- [ ] Скроллбар в тон темы
-- [ ] Проверить все 5 уровней вручную
-- [ ] `pnpm run lint` — чисто
-- [ ] `pnpm test` — все тесты зелёные
+### CP0: Инфраструктура
+- [ ] Установить `phaser`
+- [ ] Удалить `react`, `react-dom`, `zustand`, `@vitejs/plugin-react`, `@types/react*`, `eslint-plugin-react-hooks`
+- [ ] Обновить `vite.config.ts` (убрать react plugin)
+- [ ] Обновить `tsconfig.json` (убрать `jsx`)
+- [ ] Обновить `index.html` (убрать `<div id="root">`, подключить `src/main.ts`)
+- [ ] Создать `src/main.ts` — Phaser.Game config (Scale.RESIZE, transparent bg)
+- [ ] Создать пустые `src/scenes/BootScene.ts`, `src/scenes/GameScene.ts`
+- [ ] Удалить `src/ui/*`, `src/store/*`, `src/__tests__/store/*`
+- [ ] Удалить `src/game/GameLoop.ts`, `src/__tests__/game/GameLoop.test.ts`
+- [ ] Обновить `eslint.config.js` (убрать react-hooks plugin)
+- [ ] `pnpm test` — 115 тестов проходят
 - [ ] `pnpm run build` — собирается
-- [ ] Деплой на GitHub Pages работает
 
-**Результат:** готовый к публикации MVP v2.
+### CP1: Генерация ассетов
+- [ ] `src/assets/TextureGenerator.ts` — все текстуры из таблицы
+- [ ] `src/assets/SoundGenerator.ts` — все звуки из таблицы
+- [ ] BootScene вызывает генераторы → переход к GameScene
+- [ ] `pnpm run build` — собирается
+
+### CP2: GameScene — сетка
+- [ ] Создать GameSession, нарисовать grid из спрайтов
+- [ ] Центрирование сетки, resize handler
+- [ ] Sync спрайтов с snapshot (free/alloc/garbage ячейки)
+- [ ] `pnpm run build` — собирается
+
+### CP3: Блоки с указателями
+- [ ] Allocated ячейки → цвет процесса + текст pointer (0xXXXX)
+- [ ] Garbage ячейки → текстура cell-garbage
+- [ ] Hover → показать имя процесса
+- [ ] `pnpm run build` — собирается
+
+### CP4: Очередь запросов (HUD)
+- [ ] Панель внизу: горизонтальный ряд карточек
+- [ ] ALLOC: синий акцент, процесс + размер
+- [ ] FREE: оранжевый акцент, pointer + deadline progress bar
+- [ ] Urgent-пульс для FREE < 30% времени
+- [ ] `pnpm run build` — собирается
+
+### CP5: Drag & Drop — ALLOC
+- [ ] ALLOC-карточка → draggable
+- [ ] Ghost-фигура следует за курсором, snap к сетке
+- [ ] Превью canPlace → зелёный / красный ghost
+- [ ] R → вращение ghost
+- [ ] Drop на валидной позиции → placeBlock() + sfx-place
+- [ ] Drop вне → отмена
+- [ ] `pnpm run build` — собирается
+
+### CP6: Drag & Drop — FREE + подсветка указателей
+- [ ] FREE-карточка → draggable
+- [ ] dragstart: resolvePointer → подсветить целевой блок (tween пульсация)
+- [ ] Соединительная линия от карточки к блоку
+- [ ] Drop на правильном блоке → freeBlock() + sfx-free
+- [ ] Drop на неправильном → sfx-error + отмена
+- [ ] Pointer loss — нет подсветки, игрок ищет вручную
+- [ ] `pnpm run build` — собирается
+
+### CP7: Drag & Drop — Garbage
+- [ ] Garbage-спрайты → draggable
+- [ ] Drag: блок поднимается + shadow
+- [ ] Drop на пустую ячейку → moveGarbage()
+- [ ] Drop на занятую → возврат
+- [ ] `pnpm run build` — собирается
+
+### CP8: Stats bar + игровой цикл
+- [ ] Панель сверху: уровень, счёт/цель, stability bar, тик
+- [ ] Phaser time.addEvent для тиков (500ms)
+- [ ] Каждый тик → session.tick() → обновить grid + queue + stats
+- [ ] Кнопки Start / Pause / Resume
+- [ ] Win/Lose условия → overlay
+- [ ] `pnpm run build` — собирается
+
+### CP9: Анимации и звуки
+- [ ] Place: белая вспышка (tween alpha 1→0)
+- [ ] Free: dissolve (scale 1→0 + alpha 1→0)
+- [ ] Garbage conversion: красный pulse
+- [ ] Звуки на все события
+- [ ] Particle эффекты (place, free)
+- [ ] `pnpm run build` — собирается
+
+### CP10: Overlays
+- [ ] Start screen: заголовок + Start + level select
+- [ ] Game Over: win/lose, счёт, retry / next level
+- [ ] Help: правила игры
+- [ ] `pnpm run build` — собирается
+
+### CP11: Polish & Deploy
+- [ ] Responsive (Phaser Scale.RESIZE)
+- [ ] Проверить все 5 уровней
+- [ ] `pnpm run lint` — чисто
+- [ ] `pnpm test` — зелёные
+- [ ] `pnpm run build` — ок
+- [ ] README.md — обновить
+- [ ] Деплой
 
 ---
 
-## Порядок работы на каждом шаге
+## Карта зависимостей
 
 ```
-1. Пишем ТЕСТ (Red)     — описываем ожидаемое поведение
-2. Запускаем — тест ПАДАЕТ (подтверждаем что тест валиден)
-3. Пишем МИНИМАЛЬНЫЙ код (Green) — чтобы тест прошёл
-4. Запускаем — тест ПРОХОДИТ
-5. Рефакторим (Refactor) — улучшаем код, тесты всё ещё зелёные
-6. Коммитим
-```
-
----
-
-## Карта зависимостей между чекпоинтами
-
-```
-CP0 (очистка)
- └─► CP1 (типы)
-      ├─► CP2 (shapes)
-      ├─► CP4 (pointers)
-      └─► CP5 (scorer)
-           │
-CP2 ──────►CP3 (grid)
-           │
-CP3 + CP4 ─► CP7 (garbage)
-              │
-CP5 + CP6 + CP7 ─► CP8 (session)
-                     │
-                     ├─► CP9 (store)
-                     │    └─► CP10 (layout)
-                     │         └─► CP11 (grid canvas)
-                     │              └─► CP12 (drag & drop)
-                     │                   └─► CP13 (timers + garbage UI)
-                     │                        └─► CP14 (full loop)
-                     │                             └─► CP15 (help + readme)
-                     │                                  └─► CP16 (polish)
+CP0 (инфраструктура)
+ └─► CP1 (ассеты)
+      └─► CP2 (сетка)
+           └─► CP3 (блоки + указатели)
+                ├─► CP4 (HUD очередь)
+                │    └─► CP5 (drag ALLOC)
+                │         └─► CP6 (drag FREE + подсветка)
+                │              └─► CP7 (drag Garbage)
+                │                   └─► CP8 (stats + tick loop)
+                │                        └─► CP9 (анимации + звуки)
+                │                             └─► CP10 (overlays)
+                │                                  └─► CP11 (polish)
 ```

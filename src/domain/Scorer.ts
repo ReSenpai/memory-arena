@@ -44,6 +44,12 @@ export class Scorer {
     this.score = Math.max(0, this.score - 5)
   }
 
+  /** −30 очков и −0.15 стабильности за double-free */
+  onDoubleFree(): void {
+    this.score = Math.max(0, this.score - 30)
+    this.stability = Math.max(0, this.stability - 0.15)
+  }
+
   /** Штраф пропорциональный фрагментации (0–1) */
   onFragmentationPenalty(fragmentation: number): void {
     if (fragmentation > 0) {

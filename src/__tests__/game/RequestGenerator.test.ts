@@ -2,14 +2,12 @@ import { describe, it, expect } from 'vitest'
 import { RequestGenerator } from '../../game/RequestGenerator'
 import { getLevelConfig } from '../../game/LevelManager'
 import { SeededRandom } from '../../game/SeededRandom'
-import { PointerRegistry } from '../../domain/PointerRegistry'
 
 describe('RequestGenerator v2 — генерация запросов', () => {
   function makeGenerator(levelId = 1) {
     const config = getLevelConfig(levelId)
     const rng = new SeededRandom(42)
-    const registry = new PointerRegistry()
-    return new RequestGenerator(config, rng, registry)
+    return new RequestGenerator(config, rng)
   }
 
   describe('allocate запросы', () => {
@@ -36,7 +34,8 @@ describe('RequestGenerator v2 — генерация запросов', () => {
       if (alloc && alloc.type === 'allocate') {
         expect(alloc.payload.shape.length).toBeGreaterThan(0)
         expect(alloc.payload.process).toBeTruthy()
-        expect(alloc.payload.pointer).toMatch(/^0x[0-9A-F]{4}$/)
+        // pointer назначается при размещении, в запросе пустая строка
+        expect(alloc.payload.pointer).toBe('')
         expect(alloc.payload.createdAtTick).toBe(config.requestInterval)
       }
     })
