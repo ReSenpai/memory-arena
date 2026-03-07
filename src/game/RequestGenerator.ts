@@ -1,5 +1,4 @@
 import type { GameRequest, Pointer } from '../domain/types'
-import type { PointerRegistry } from '../domain/PointerRegistry'
 import type { SeededRandom } from './SeededRandom'
 import type { LevelConfig } from './types'
 
@@ -10,17 +9,15 @@ import type { LevelConfig } from './types'
 export class RequestGenerator {
   private config: LevelConfig
   private rng: SeededRandom
-  private registry: PointerRegistry
   private nextId = 1
   /** BlockId → Pointer для отслеживания allocated блоков (для free) */
   private allocatedPointers = new Map<string, Pointer>()
   private lostPointers: Pointer[] = []
   private currentQueueSize = 0
 
-  constructor(config: LevelConfig, rng: SeededRandom, registry: PointerRegistry) {
+  constructor(config: LevelConfig, rng: SeededRandom) {
     this.config = config
     this.rng = rng
-    this.registry = registry
   }
 
   /** Отметить блок как allocated (для генерации free запросов) */
@@ -63,14 +60,13 @@ export class RequestGenerator {
       this.config.processNames[
         this.rng.nextInt(0, this.config.processNames.length - 1)
       ]
-    const pointer = this.registry.generatePointer()
 
     requests.push({
       type: 'allocate',
       payload: {
         id: `req-${this.nextId++}`,
         process,
-        pointer,
+        pointer: '',
         shape,
         createdAtTick: currentTick,
       },

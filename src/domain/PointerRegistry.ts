@@ -9,13 +9,11 @@ export class PointerRegistry {
   private active: Map<Pointer, BlockId> = new Map()
   /** pointer → blockId (потерянные — pointer lost) */
   private lost: Map<Pointer, BlockId> = new Map()
-  /** Счётчик для генерации уникальных pointer'ов */
-  private counter = 0
 
-  /** Генерирует уникальный hex pointer вида 0xXXXX */
-  generatePointer(): Pointer {
-    this.counter++
-    const hex = this.counter.toString(16).toUpperCase().padStart(4, '0')
+  /** Вычислить pointer для ячейки по её позиции (детерминированный адрес) */
+  static pointerForCell(row: number, col: number, gridCols: number): Pointer {
+    const addr = row * gridCols + col
+    const hex = addr.toString(16).toUpperCase().padStart(4, '0')
     return `0x${hex}`
   }
 

@@ -33,6 +33,11 @@ export class GameScene extends Phaser.Scene {
   private tickTimer!: Phaser.Time.TimerEvent
   /** Флаг паузы */
   private paused = false
+  /** Overlay при паузе */
+  private pauseOverlay!: Phaser.GameObjects.Graphics
+  private pauseText!: Phaser.GameObjects.Text
+  /** Help text */
+  private helpText!: Phaser.GameObjects.Text
 
   /** Текущий масштаб ячеек (1 = 32px) */
   private cellScale = 1
@@ -90,6 +95,29 @@ export class GameScene extends Phaser.Scene {
       this.togglePause()
     })
 
+    // Help text
+    this.helpText = this.add
+      .text(this.scale.width / 2, this.scale.height - 4, 'R — rotate   P — pause   Drag cards to grid', {
+        fontSize: '10px',
+        fontFamily: 'monospace',
+        color: '#484f58',
+      })
+      .setOrigin(0.5, 1)
+      .setDepth(50)
+
+    // Pause overlay (hidden initially)
+    this.pauseOverlay = this.add.graphics().setDepth(500).setVisible(false)
+    this.pauseText = this.add
+      .text(this.scale.width / 2, this.scale.height / 2, 'PAUSED\n\nPress P to resume', {
+        fontSize: '24px',
+        fontFamily: 'monospace',
+        color: '#58a6ff',
+        align: 'center',
+      })
+      .setOrigin(0.5)
+      .setDepth(501)
+      .setVisible(false)
+
     this.scale.on('resize', this.onResize, this)
   }
 
@@ -129,9 +157,18 @@ export class GameScene extends Phaser.Scene {
     if (this.paused) {
       this.session.resume()
       this.paused = false
+      this.pauseOverlay.setVisible(false)
+      this.pauseText.setVisible(false)
     } else {
       this.session.pause()
       this.paused = true
+      const { width, height } = this.scale
+      this.pauseOverlay.clear()
+      this.pauseOverlay.fillStyle(0x000000, 0.6)
+      this.pauseOverlay.fillRect(0, 0, width, height)
+      this.pauseOverlay.setVisible(true)
+      this.pauseText.setPosition(width / 2, height / 2)
+      this.pauseText.setVisible(true)
     }
   }
 
@@ -184,6 +221,9 @@ export class GameScene extends Phaser.Scene {
     this.snapshot = this.session.getSnapshot()
     const { gridSnapshot, gridRows, gridCols, allocatedBlocks } = this.snapshot
 
+    // Набор garbage blockId для интерактивности
+    const garbageBlockIds = new Set<string>()
+
     for (let r = 0; r < gridRows; r++) {
       for (let c = 0; c < gridCols; c++) {
         const cell = gridSnapshot[r][c]
@@ -191,11 +231,30 @@ export class GameScene extends Phaser.Scene {
 
         if (cell.type === 'free') {
           sprite.setTexture('cell-free')
+          sprite.setAlpha(1)
+          sprite.disableInteractive()
+          sprite.setData('garbageBlockId', null)
         } else if (cell.type === 'allocated') {
           const idx = getProcessColorIndex(cell.blockId)
           sprite.setTexture(`cell-alloc-${idx}`)
+          sprite.setAlpha(1)
+          sprite.disableInteractive()
+          sprite.setData('garbageBlockId', null)
+        } else if (cell.type === 'dissolving') {
+          const idx = getProcessColorIndex(cell.blockId)
+          sprite.setTexture(`cell-alloc-${idx}`)
+          sprite.setAlpha(0.4)
+          sprite.disableInteractive()
+          sprite.setData('garbageBlockId', null)
         } else if (cell.type === 'garbage') {
           sprite.setTexture('cell-garbage')
+          sprite.setAlpha(1)
+          // Сделать garbage ячейки интерактивными для перетаскивания
+          if (!garbageBlockIds.has(cell.blockId)) {
+            garbageBlockIds.add(cell.blockId)
+          }
+          sprite.setInteractive({ useHandCursor: true })
+          sprite.setData('garbageBlockId', cell.blockId)
         }
       }
     }
@@ -348,6 +407,13 @@ export class GameScene extends Phaser.Scene {
     this.syncQueue()
     this.statsBar.layout()
     this.syncStats()
+    this.helpText.setPosition(this.scale.width / 2, this.scale.height - 4)
+    if (this.paused) {
+      this.pauseOverlay.clear()
+      this.pauseOverlay.fillStyle(0x000000, 0.6)
+      this.pauseOverlay.fillRect(0, 0, this.scale.width, this.scale.height)
+      this.pauseText.setPosition(this.scale.width / 2, this.scale.height / 2)
+    }
   }
 
   /** Обновить HUD очереди из snapshot */

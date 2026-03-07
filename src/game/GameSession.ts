@@ -35,6 +35,7 @@ export type SessionSnapshot = {
   allocatedBlocks: AllocatedBlock[]
   garbageBlocks: GarbageBlock[]
   pendingRequests: GameRequest[]
+  dissolvingBlockIds: string[]
 }
 
 /**
@@ -58,6 +59,9 @@ export class GameSession {
   /** requestId → AllocateRequest (для сопоставления) */
   private allocateRequestMap = new Map<string, GameRequest>()
   private freeRequestMap = new Map<string, GameRequest>()
+  /** Блоки в процессе растворения: blockId → оставшихся тиков */
+  private dissolvingBlocks = new Map<string, number>()
+  private static readonly DISSOLVE_TICKS = 6
 
   constructor(levelId: number, seed: number) {
     this.config = getLevelConfig(levelId)
@@ -66,7 +70,7 @@ export class GameSession {
     this.scorer = new Scorer()
     this.garbageManager = new GarbageManager()
     const rng = new SeededRandom(seed)
-    this.requestGen = new RequestGenerator(this.config, rng, this.registry)
+    this.requestGen = new RequestGenerator(this.config, rng)
   }
 
   getState(): SessionState {
@@ -159,6 +163,7 @@ export class GameSession {
       if (blockId) {
         const block = this.allocatedBlocks.get(blockId)
         if (block) {
+          this.dissolvingBlocks.delete(blockId)
           this.grid.remove(blockId)
           const garbage = this.garbageManager.convertToGarbage(block)
           this.grid.placeGarbage(garbage)
@@ -169,7 +174,25 @@ export class GameSession {
       }
     }
 
-    // 6. Win / Lose check
+    // 6. Обработка растворяющихся блоков
+    for (const [blockId, remaining] of this.dissolvingBlocks) {
+      const next = remaining - 1
+      if (next <= 0) {
+        // Полностью удаляем блок
+        const block = this.allocatedBlocks.get(blockId)
+        if (block) {
+          this.grid.remove(blockId)
+          this.registry.unregister(block.pointer)
+          this.allocatedBlocks.delete(blockId)
+          this.requestGen.unregisterAllocated(blockId)
+        }
+        this.dissolvingBlocks.delete(blockId)
+      } else {
+        this.dissolvingBlocks.set(blockId, next)
+      }
+    }
+
+    // 7. Win / Lose check
     if (this.scorer.getStability() <= 0) {
       this.state = 'finished'
       this.finishReason = 'lose'
@@ -199,9 +222,10 @@ export class GameSession {
     }
 
     const cells = shape.map((c) => ({ row: row + c.row, col: col + c.col }))
+    const pointer = PointerRegistry.pointerForCell(row, col, this.config.gridCols)
     const block: AllocatedBlock = {
       id: `block-${requestId}`,
-      pointer: req.payload.pointer,
+      pointer,
       process: req.payload.process,
       shape,
       cells,
@@ -209,7 +233,7 @@ export class GameSession {
     }
 
     this.grid.place(block)
-    this.registry.register(req.payload.pointer, block.id)
+    this.registry.register(pointer, block.id)
     this.allocatedBlocks.set(block.id, block)
     this.requestGen.registerAllocated(block.id, block.pointer)
 
@@ -233,6 +257,17 @@ export class GameSession {
       return { success: false, reason: 'request-not-found' }
     }
 
+    // Double-free: блок уже растворяется
+    if (this.dissolvingBlocks.has(targetBlockId)) {
+      this.scorer.onDoubleFree()
+      // Удаляем free из очереди
+      this.pendingRequests = this.pendingRequests.filter(
+        (r) => !(r.type === 'free' && r.payload.id === freeRequestId),
+      )
+      this.freeRequestMap.delete(freeRequestId)
+      return { success: false, reason: 'double-free' }
+    }
+
     const block = this.allocatedBlocks.get(targetBlockId)
     if (!block) {
       return { success: false, reason: 'not-found' }
@@ -244,11 +279,8 @@ export class GameSession {
       return { success: false, reason: 'pointer-mismatch' }
     }
 
-    const freedCells = [...block.cells]
-    this.grid.remove(targetBlockId)
-    this.registry.unregister(block.pointer)
-    this.allocatedBlocks.delete(targetBlockId)
-    this.requestGen.unregisterAllocated(targetBlockId)
+    // Начинаем растворение вместо мгновенного удаления
+    this.dissolvingBlocks.set(targetBlockId, GameSession.DISSOLVE_TICKS)
 
     // Удаляем free из очереди
     this.pendingRequests = this.pendingRequests.filter(
@@ -260,7 +292,7 @@ export class GameSession {
     const ticksSince = this.currentTick - req.payload.createdAtTick
     this.scorer.onQuickAction(ticksSince)
 
-    return { success: true, freedCells }
+    return { success: true, freedCells: [...block.cells] }
   }
 
   moveGarbage(garbageId: string, newRow: number, newCol: number): MoveGarbageResult {
@@ -272,6 +304,18 @@ export class GameSession {
   }
 
   getSnapshot(): SessionSnapshot {
+    const gridSnapshot = this.grid.getSnapshot()
+
+    // Пометить растворяющиеся ячейки
+    for (const [blockId] of this.dissolvingBlocks) {
+      const block = this.allocatedBlocks.get(blockId)
+      if (block) {
+        for (const cell of block.cells) {
+          gridSnapshot[cell.row][cell.col] = { type: 'dissolving', blockId }
+        }
+      }
+    }
+
     return {
       state: this.state,
       finishReason: this.finishReason,
@@ -280,12 +324,13 @@ export class GameSession {
       score: this.scorer.getScore(),
       stability: this.scorer.getStability(),
       targetScore: this.config.targetScore,
-      gridSnapshot: this.grid.getSnapshot(),
+      gridSnapshot,
       gridRows: this.config.gridRows,
       gridCols: this.config.gridCols,
       allocatedBlocks: [...this.allocatedBlocks.values()],
       garbageBlocks: this.garbageManager.getGarbageBlocks(),
       pendingRequests: [...this.pendingRequests],
+      dissolvingBlockIds: [...this.dissolvingBlocks.keys()],
     }
   }
 }

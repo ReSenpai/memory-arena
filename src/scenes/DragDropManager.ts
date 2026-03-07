@@ -226,7 +226,7 @@ export class DragDropManager {
     if (cell && this.freeRequestId) {
       const snapshot = this.scene.getSnapshot()
       const content = snapshot.gridSnapshot[cell.row][cell.col]
-      if (content.type === 'allocated') {
+      if (content.type === 'allocated' || content.type === 'dissolving') {
         const result = this.scene
           .getSession()
           .freeBlock(this.freeRequestId, content.blockId)
@@ -234,6 +234,10 @@ export class DragDropManager {
           success = true
           this.scene.sound.play('sfx-free')
           this.scene.getAnimManager().dissolve(result.freedCells)
+        } else if (!result.success && result.reason === 'double-free') {
+          // Double free — звук ошибки, но запрос всё равно потреблён
+          this.scene.sound.play('sfx-error')
+          success = true // не показывать ещё одну ошибку
         }
       }
     }

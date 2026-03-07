@@ -94,7 +94,7 @@ export class StatsBar {
     this.stabilityBarBg.fillStyle(0x1e2130)
     this.stabilityBarBg.fillRect(stabX, 22, stabW, 8)
 
-    const frac = Math.max(0, Math.min(1, stability / 100))
+    const frac = Math.max(0, Math.min(1, stability))
     let color = 0x3fb950 // green
     if (frac < 0.3) color = 0xf85149 // red
     else if (frac < 0.6) color = 0xd29922 // yellow
