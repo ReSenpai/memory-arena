@@ -7,10 +7,17 @@ const CELL = 32
  * Сетка масштабируется (cellScale до 1.5) и зумится на devicePixelRatio,
  * поэтому 32px текстура растягивалась и мылилась. Спрайты ячеек нужно
  * создавать со `setScale(1 / CELL_TEX_SCALE)`.
+ *
+ * Линий сетки в текстурах нет: тонкая рамка у края сильно уменьшенной
+ * текстуры то попадает в пиксель, то нет (рябь). Сетку рисует GameScene
+ * векторно поверх ячеек.
  */
 const CELL_TEX_SCALE = 4
 const TEX = CELL * CELL_TEX_SCALE
 const S = CELL_TEX_SCALE
+
+/** Цвет линий сетки */
+const GRID_LINE_COLOR = 0x2a2d3a
 
 const PROCESS_COLORS = [
   0x58a6ff, 0xf0883e, 0xa371f7, 0x3fb950, 0xd2a8ff, 0x79c0ff, 0xf778ba,
@@ -22,8 +29,6 @@ export function generateTextures(scene: Phaser.Scene): void {
   const gFree = scene.make.graphics({ x: 0, y: 0 }, false)
   gFree.fillStyle(0x1a1d27)
   gFree.fillRect(0, 0, TEX, TEX)
-  gFree.lineStyle(S, 0x2a2d3a)
-  gFree.strokeRect(0, 0, TEX, TEX)
   gFree.generateTexture('cell-free', TEX, TEX)
   gFree.destroy()
 
@@ -32,8 +37,6 @@ export function generateTextures(scene: Phaser.Scene): void {
     const g = scene.make.graphics({ x: 0, y: 0 }, false)
     g.fillStyle(PROCESS_COLORS[i])
     g.fillRect(S, S, TEX - 2 * S, TEX - 2 * S)
-    g.lineStyle(S, 0x2a2d3a)
-    g.strokeRect(0, 0, TEX, TEX)
     g.generateTexture(`cell-alloc-${i}`, TEX, TEX)
     g.destroy()
   }
@@ -42,13 +45,11 @@ export function generateTextures(scene: Phaser.Scene): void {
   const gGarb = scene.make.graphics({ x: 0, y: 0 }, false)
   gGarb.fillStyle(0x6e4020)
   gGarb.fillRect(S, S, TEX - 2 * S, TEX - 2 * S)
-  gGarb.lineStyle(S, 0x8b5e3c)
+  gGarb.lineStyle(2 * S, 0x8b5e3c)
   gGarb.beginPath()
   gGarb.moveTo(2 * S, TEX - 2 * S)
   gGarb.lineTo(TEX - 2 * S, 2 * S)
   gGarb.strokePath()
-  gGarb.lineStyle(S, 0x2a2d3a)
-  gGarb.strokeRect(0, 0, TEX, TEX)
   gGarb.generateTexture('cell-garbage', TEX, TEX)
   gGarb.destroy()
 
@@ -90,4 +91,4 @@ export function getProcessColorIndex(blockId: string): number {
   return Math.abs(hash) % PROCESS_COLORS.length
 }
 
-export { CELL, CELL_TEX_SCALE, PROCESS_COLORS }
+export { CELL, CELL_TEX_SCALE, GRID_LINE_COLOR, PROCESS_COLORS }

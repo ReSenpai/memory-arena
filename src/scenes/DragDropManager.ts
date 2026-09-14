@@ -179,13 +179,13 @@ export class DragDropManager {
     }
 
     this.freeDragIcon = this.scene.add
-      .text(worldX, worldY - 30, `FREE\n${pointer}`, {
-        fontSize: '10px',
+      .text(worldX, worldY - 40, `FREE\n${pointer}`, {
+        fontSize: '14px',
         resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#f0883e',
         backgroundColor: '#1a1d27',
-        padding: { x: 6, y: 4 },
+        padding: { x: 8, y: 5 },
         align: 'center',
       })
       .setOrigin(0.5)
@@ -198,7 +198,7 @@ export class DragDropManager {
 
   private updateFreeDrag(worldX: number, worldY: number): void {
     if (this.freeDragIcon) {
-      this.freeDragIcon.setPosition(worldX, worldY - 30)
+      this.freeDragIcon.setPosition(worldX, worldY - 40)
     }
 
     if (this.connectionLine && this.freeTargetBlockId) {
