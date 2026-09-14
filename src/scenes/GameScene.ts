@@ -1,7 +1,8 @@
 import Phaser from 'phaser'
+import { setupCamera, textResolution, viewSize } from '../viewport'
 import { GameSession } from '../game/GameSession'
 import type { SessionSnapshot } from '../game/GameSession'
-import { CELL, getProcessColorIndex, PROCESS_COLORS } from '../assets/TextureGenerator'
+import { CELL, CELL_TEX_SCALE, getProcessColorIndex, PROCESS_COLORS } from '../assets/TextureGenerator'
 import { RequestQueueHUD } from './RequestQueueHUD'
 import { DragDropManager } from './DragDropManager'
 import { StatsBar } from './StatsBar'
@@ -47,6 +48,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(data?: { levelId?: number }): void {
+    setupCamera(this)
     const levelId = data?.levelId ?? 1
     this.session = new GameSession(levelId, Date.now())
     this.session.start()
@@ -58,6 +60,7 @@ export class GameScene extends Phaser.Scene {
     this.tooltip = this.add
       .text(0, 0, '', {
         fontSize: '11px',
+        resolution: textResolution(),
         color: '#ffffff',
         backgroundColor: '#1a1d27',
         padding: { x: 6, y: 3 },
@@ -96,9 +99,11 @@ export class GameScene extends Phaser.Scene {
     })
 
     // Help text
+    const view = viewSize(this)
     this.helpText = this.add
-      .text(this.scale.width / 2, this.scale.height - 4, 'R — поворот   Esc — пауза   Перетаскивай карточки на сетку', {
+      .text(view.width / 2, view.height - 4, 'R — поворот   Esc — пауза   Перетаскивай карточки на сетку', {
         fontSize: '10px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#484f58',
       })
@@ -110,6 +115,7 @@ export class GameScene extends Phaser.Scene {
     this.pauseMenu = this.add.container(0, 0).setDepth(501).setVisible(false)
 
     this.scale.on('resize', this.onResize, this)
+    this.events.once('shutdown', () => this.scale.off('resize', this.onResize, this))
   }
 
   /** Обработка тика */
@@ -160,7 +166,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Построить меню паузы */
   private buildPauseMenu(): void {
-    const { width, height } = this.scale
+    const { width, height } = viewSize(this)
 
     // Overlay
     this.pauseOverlay.clear()
@@ -188,6 +194,7 @@ export class GameScene extends Phaser.Scene {
     const title = this.add
       .text(width / 2, py + 30, 'ПАУЗА', {
         fontSize: '22px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#58a6ff',
         fontStyle: 'bold',
@@ -208,6 +215,7 @@ export class GameScene extends Phaser.Scene {
     const rulesText = this.add
       .text(px + 20, py + 60, rules.join('\n'), {
         fontSize: '10px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#8b949e',
         lineSpacing: 6,
@@ -243,6 +251,7 @@ export class GameScene extends Phaser.Scene {
     const text = this.add
       .text(x, y, label, {
         fontSize: '13px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#e6edf3',
       })
@@ -288,7 +297,7 @@ export class GameScene extends Phaser.Scene {
       this.cellSprites[r] = []
       for (let c = 0; c < gridCols; c++) {
         const sprite = this.add.image(c * CELL, r * CELL, 'cell-free')
-        sprite.setOrigin(0, 0)
+        sprite.setOrigin(0, 0).setScale(1 / CELL_TEX_SCALE)
         this.gridContainer.add(sprite)
         this.cellSprites[r][c] = sprite
       }
@@ -298,7 +307,7 @@ export class GameScene extends Phaser.Scene {
   /** Центрирует сетку и масштабирует под размер экрана */
   private layoutGrid(): void {
     const { gridRows, gridCols } = this.snapshot
-    const { width, height } = this.scale
+    const { width, height } = viewSize(this)
 
     const pad = 80 // отступ сверху (stats) и снизу (queue)
     const availW = width - 32
@@ -379,6 +388,7 @@ export class GameScene extends Phaser.Scene {
         label = this.add
           .text(0, 0, block.pointer, {
             fontSize: '8px',
+            resolution: textResolution(2),
             color: '#ffffff',
             fontFamily: 'monospace',
             stroke: '#000000',
@@ -414,7 +424,7 @@ export class GameScene extends Phaser.Scene {
 
     for (const cell of block.cells) {
       const hl = this.add.image(cell.col * CELL, cell.row * CELL, 'cell-highlight')
-      hl.setOrigin(0, 0)
+      hl.setOrigin(0, 0).setScale(1 / CELL_TEX_SCALE)
       this.gridContainer.add(hl)
       this.highlightSprites.push(hl)
     }
@@ -511,7 +521,8 @@ export class GameScene extends Phaser.Scene {
     this.syncQueue()
     this.statsBar.layout()
     this.syncStats()
-    this.helpText.setPosition(this.scale.width / 2, this.scale.height - 4)
+    const { width, height } = viewSize(this)
+    this.helpText.setPosition(width / 2, height - 4)
     if (this.paused) {
       this.buildPauseMenu()
     }

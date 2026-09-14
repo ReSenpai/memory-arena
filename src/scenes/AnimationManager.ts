@@ -1,5 +1,5 @@
 import type { GameScene } from './GameScene'
-import { CELL } from '../assets/TextureGenerator'
+import { CELL, CELL_TEX_SCALE } from '../assets/TextureGenerator'
 import type { Cell } from '../domain/types'
 
 /**
@@ -17,7 +17,7 @@ export class AnimationManager {
     const container = this.scene.getGridContainer()
     for (const cell of cells) {
       const flash = this.scene.add.image(cell.col * CELL, cell.row * CELL, 'cell-ghost-ok')
-      flash.setOrigin(0, 0).setAlpha(0.8)
+      flash.setOrigin(0, 0).setScale(1 / CELL_TEX_SCALE).setAlpha(0.8)
       container.add(flash)
       this.scene.tweens.add({
         targets: flash,
@@ -34,13 +34,13 @@ export class AnimationManager {
     const container = this.scene.getGridContainer()
     for (const cell of cells) {
       const sprite = this.scene.add.image(cell.col * CELL, cell.row * CELL, 'cell-free')
-      sprite.setOrigin(0, 0).setAlpha(1)
+      sprite.setOrigin(0, 0).setScale(1 / CELL_TEX_SCALE).setAlpha(1)
       container.add(sprite)
       this.scene.tweens.add({
         targets: sprite,
         alpha: 0,
-        scaleX: 0.3,
-        scaleY: 0.3,
+        scaleX: 0.3 / CELL_TEX_SCALE,
+        scaleY: 0.3 / CELL_TEX_SCALE,
         duration: 400,
         ease: 'Power3',
         onComplete: () => sprite.destroy(),
@@ -53,7 +53,7 @@ export class AnimationManager {
     const container = this.scene.getGridContainer()
     for (const cell of cells) {
       const pulse = this.scene.add.image(cell.col * CELL, cell.row * CELL, 'cell-ghost-bad')
-      pulse.setOrigin(0, 0).setAlpha(0.7)
+      pulse.setOrigin(0, 0).setScale(1 / CELL_TEX_SCALE).setAlpha(0.7)
       container.add(pulse)
       this.scene.tweens.add({
         targets: pulse,

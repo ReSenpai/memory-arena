@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { setupCamera, textResolution, viewSize } from '../viewport'
 import type { FinishReason } from '../game/GameSession'
 
 export class GameOverScene extends Phaser.Scene {
@@ -7,7 +8,8 @@ export class GameOverScene extends Phaser.Scene {
   }
 
   create(data: { reason: FinishReason; score: number; targetScore: number; levelId: number }): void {
-    const { width, height } = this.scale
+    setupCamera(this)
+    const { width, height } = viewSize(this)
     const isWin = data.reason === 'win'
 
     // Dimmed background
@@ -19,6 +21,7 @@ export class GameOverScene extends Phaser.Scene {
     this.add
       .text(width / 2, height * 0.3, isWin ? 'ПОБЕДА!' : 'ПОРАЖЕНИЕ', {
         fontSize: '32px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: isWin ? '#3fb950' : '#f85149',
         fontStyle: 'bold',
@@ -29,6 +32,7 @@ export class GameOverScene extends Phaser.Scene {
     this.add
       .text(width / 2, height * 0.3 + 50, `Очки: ${data.score} / ${data.targetScore}`, {
         fontSize: '16px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#e6edf3',
       })
@@ -65,6 +69,7 @@ export class GameOverScene extends Phaser.Scene {
     const text = this.add
       .text(x, y, label, {
         fontSize: '14px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#e6edf3',
       })

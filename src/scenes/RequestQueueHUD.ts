@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { textResolution, viewSize } from '../viewport'
 import type { GameRequest } from '../domain/types'
  
 const CARD_W = 90
@@ -35,9 +36,9 @@ export class RequestQueueHUD {
     }
     this.cards = []
 
-    const y = this.scene.scale.height - CARD_H - 12
+    const y = viewSize(this.scene).height - CARD_H - 12
     const totalWidth = requests.length * (CARD_W + CARD_GAP) - CARD_GAP
-    let startX = (this.scene.scale.width - totalWidth) / 2
+    let startX = (viewSize(this.scene).width - totalWidth) / 2
 
     for (const req of requests) {
       const card = this.createCard(req, startX, y, currentTick)
@@ -73,6 +74,7 @@ export class RequestQueueHUD {
     const typeText = this.scene.add
       .text(10, 6, typeLabel, {
         fontSize: '9px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#aaaaaa',
         fontStyle: 'bold',
@@ -90,6 +92,7 @@ export class RequestQueueHUD {
     const detailText = this.scene.add
       .text(10, 20, detail, {
         fontSize: '10px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#cccccc',
         lineSpacing: 2,

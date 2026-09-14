@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { textResolution, viewSize } from '../viewport'
 
 const BAR_H = 40
 const BAR_PAD = 16
@@ -25,6 +26,7 @@ export class StatsBar {
     this.levelText = scene.add
       .text(BAR_PAD, 10, '', {
         fontSize: '13px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#58a6ff',
         fontStyle: 'bold',
@@ -36,6 +38,7 @@ export class StatsBar {
     this.scoreText = scene.add
       .text(0, 10, '', {
         fontSize: '13px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#e6edf3',
       })
@@ -46,6 +49,7 @@ export class StatsBar {
     this.stabilityLabel = scene.add
       .text(0, 10, 'СТАБИЛЬНОСТЬ', {
         fontSize: '9px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#8b949e',
       })
@@ -64,7 +68,7 @@ export class StatsBar {
   }
 
   private drawBg(): void {
-    const w = this.scene.scale.width
+    const w = viewSize(this.scene).width
     this.bg.clear()
     this.bg.fillStyle(0x0d1117, 0.9)
     this.bg.fillRect(0, 0, w, BAR_H)
@@ -78,7 +82,7 @@ export class StatsBar {
     targetScore: number,
     stability: number,
   ): void {
-    const w = this.scene.scale.width
+    const w = viewSize(this.scene).width
 
     this.levelText.setText(`УРОВЕНЬ ${levelId}`)
     this.scoreText.setText(`${score} / ${targetScore}`)

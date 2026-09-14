@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { setupCamera, textResolution, viewSize } from '../viewport'
 import { TOTAL_LEVELS } from '../game/LevelManager'
 
 export class MenuScene extends Phaser.Scene {
@@ -7,12 +8,14 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create(): void {
-    const { width, height } = this.scale
+    setupCamera(this)
+    const { width, height } = viewSize(this)
 
     // Title
     this.add
       .text(width / 2, height * 0.25, 'MEMORY ARENA', {
         fontSize: '36px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#58a6ff',
         fontStyle: 'bold',
@@ -23,6 +26,7 @@ export class MenuScene extends Phaser.Scene {
     this.add
       .text(width / 2, height * 0.25 + 50, 'Управляй памятью. Размещай блоки. Освобождай указатели.', {
         fontSize: '13px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#8b949e',
       })
@@ -38,12 +42,15 @@ export class MenuScene extends Phaser.Scene {
     this.add
       .text(width / 2, height - 60, 'R — поворот   Esc — пауза   Перетаскивай карточки на сетку', {
         fontSize: '11px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#484f58',
       })
       .setOrigin(0.5)
 
-    this.scale.on('resize', () => this.scene.restart())
+    const onResize = () => this.scene.restart()
+    this.scale.on('resize', onResize)
+    this.events.once('shutdown', () => this.scale.off('resize', onResize))
   }
 
   private createLevelButton(x: number, y: number, levelId: number): void {
@@ -59,6 +66,7 @@ export class MenuScene extends Phaser.Scene {
     const text = this.add
       .text(x, y, label, {
         fontSize: '13px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#e6edf3',
       })
