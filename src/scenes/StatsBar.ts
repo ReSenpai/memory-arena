@@ -1,7 +1,9 @@
 import Phaser from 'phaser'
+import { textResolution, viewSize } from '../viewport'
 
-const BAR_H = 40
-const BAR_PAD = 16
+export const BAR_H = 56
+const BAR_PAD = 20
+const STAB_W = 170
 
 export class StatsBar {
   private scene: Phaser.Scene
@@ -23,29 +25,32 @@ export class StatsBar {
 
     // Level
     this.levelText = scene.add
-      .text(BAR_PAD, 10, '', {
-        fontSize: '13px',
+      .text(BAR_PAD, BAR_H / 2, '', {
+        fontSize: '20px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#58a6ff',
         fontStyle: 'bold',
       })
-      .setOrigin(0, 0)
+      .setOrigin(0, 0.5)
     this.container.add(this.levelText)
 
     // Score
     this.scoreText = scene.add
-      .text(0, 10, '', {
-        fontSize: '13px',
+      .text(0, BAR_H / 2, '', {
+        fontSize: '20px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#e6edf3',
       })
-      .setOrigin(0.5, 0)
+      .setOrigin(0.5, 0.5)
     this.container.add(this.scoreText)
 
     // Stability label
     this.stabilityLabel = scene.add
       .text(0, 10, 'СТАБИЛЬНОСТЬ', {
-        fontSize: '9px',
+        fontSize: '13px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#8b949e',
       })
@@ -64,7 +69,7 @@ export class StatsBar {
   }
 
   private drawBg(): void {
-    const w = this.scene.scale.width
+    const w = viewSize(this.scene).width
     this.bg.clear()
     this.bg.fillStyle(0x0d1117, 0.9)
     this.bg.fillRect(0, 0, w, BAR_H)
@@ -78,21 +83,20 @@ export class StatsBar {
     targetScore: number,
     stability: number,
   ): void {
-    const w = this.scene.scale.width
+    const w = viewSize(this.scene).width
 
     this.levelText.setText(`УРОВЕНЬ ${levelId}`)
     this.scoreText.setText(`${score} / ${targetScore}`)
     this.scoreText.setX(w / 2)
 
     // Stability bar
-    const stabW = 120
-    const stabX = w - BAR_PAD - stabW
+    const stabX = w - BAR_PAD - STAB_W
     this.stabilityLabel.setX(stabX)
-    this.stabilityLabel.setY(5)
+    this.stabilityLabel.setY(9)
 
     this.stabilityBarBg.clear()
     this.stabilityBarBg.fillStyle(0x1e2130)
-    this.stabilityBarBg.fillRect(stabX, 22, stabW, 8)
+    this.stabilityBarBg.fillRect(stabX, 32, STAB_W, 10)
 
     const frac = Math.max(0, Math.min(1, stability))
     let color = 0x3fb950 // green
@@ -101,7 +105,7 @@ export class StatsBar {
 
     this.stabilityBarFill.clear()
     this.stabilityBarFill.fillStyle(color)
-    this.stabilityBarFill.fillRect(stabX, 22, stabW * frac, 8)
+    this.stabilityBarFill.fillRect(stabX, 32, STAB_W * frac, 10)
   }
 
   layout(): void {

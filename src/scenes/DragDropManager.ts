@@ -1,7 +1,8 @@
 import Phaser from 'phaser'
+import { textResolution } from '../viewport'
 import type { GameScene } from './GameScene'
 import { rotateShape } from '../domain/Shapes'
-import { CELL } from '../assets/TextureGenerator'
+import { CELL, CELL_TEX_SCALE } from '../assets/TextureGenerator'
 import type { AllocateRequest, Shape } from '../domain/types'
 
 const FLOAT_CELL = 20
@@ -146,7 +147,7 @@ export class DragDropManager {
       const c = col + cell.col
       if (r >= 0 && r < gridRows && c >= 0 && c < gridCols) {
         const sprite = this.scene.add.image(c * CELL, r * CELL, texture)
-        sprite.setOrigin(0, 0)
+        sprite.setOrigin(0, 0).setScale(1 / CELL_TEX_SCALE)
         container.add(sprite)
         this.ghostSprites.push(sprite)
       }
@@ -178,12 +179,13 @@ export class DragDropManager {
     }
 
     this.freeDragIcon = this.scene.add
-      .text(worldX, worldY - 30, `FREE\n${pointer}`, {
-        fontSize: '10px',
+      .text(worldX, worldY - 40, `FREE\n${pointer}`, {
+        fontSize: '14px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#f0883e',
         backgroundColor: '#1a1d27',
-        padding: { x: 6, y: 4 },
+        padding: { x: 8, y: 5 },
         align: 'center',
       })
       .setOrigin(0.5)
@@ -196,7 +198,7 @@ export class DragDropManager {
 
   private updateFreeDrag(worldX: number, worldY: number): void {
     if (this.freeDragIcon) {
-      this.freeDragIcon.setPosition(worldX, worldY - 30)
+      this.freeDragIcon.setPosition(worldX, worldY - 40)
     }
 
     if (this.connectionLine && this.freeTargetBlockId) {

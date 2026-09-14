@@ -1,14 +1,17 @@
 import Phaser from 'phaser'
+import { textResolution, viewSize } from '../viewport'
 import type { GameRequest } from '../domain/types'
  
-const CARD_W = 90
-const CARD_H = 64
-const CARD_GAP = 8
-const CARD_RADIUS = 6
+const CARD_W = 128
+export const CARD_H = 88
+const CARD_GAP = 10
+const CARD_RADIUS = 8
+/** Отступ от низа экрана до карточек (под ними строка подсказки) */
+export const QUEUE_BOTTOM = 34
 const ALLOC_COLOR = 0x58a6ff
 const FREE_COLOR = 0xf0883e
 const URGENT_COLOR = 0xf85149
-const MINI_CELL = 5
+const MINI_CELL = 8
 
 export type CardData = {
   container: Phaser.GameObjects.Container
@@ -35,14 +38,21 @@ export class RequestQueueHUD {
     }
     this.cards = []
 
-    const y = this.scene.scale.height - CARD_H - 12
+    const { width, height } = viewSize(this.scene)
     const totalWidth = requests.length * (CARD_W + CARD_GAP) - CARD_GAP
-    let startX = (this.scene.scale.width - totalWidth) / 2
+    // Длинная очередь на узком экране — ужимаем, чтобы не вылезала за края
+    const scale = Math.min(1, (width - 32) / totalWidth)
+    this.container.setScale(scale)
+    this.container.setPosition(
+      (width - totalWidth * scale) / 2,
+      height - QUEUE_BOTTOM - CARD_H * scale,
+    )
 
+    let x = 0
     for (const req of requests) {
-      const card = this.createCard(req, startX, y, currentTick)
+      const card = this.createCard(req, x, 0, currentTick)
       this.cards.push(card)
-      startX += CARD_W + CARD_GAP
+      x += CARD_W + CARD_GAP
     }
   }
 
@@ -65,14 +75,15 @@ export class RequestQueueHUD {
     bg.strokeRoundedRect(0, 0, CARD_W, CARD_H, CARD_RADIUS)
     // Левый акцент
     bg.fillStyle(accent)
-    bg.fillRect(0, CARD_RADIUS, 3, CARD_H - CARD_RADIUS * 2)
+    bg.fillRect(0, CARD_RADIUS, 4, CARD_H - CARD_RADIUS * 2)
     container.add(bg)
 
     // Type label
     const typeLabel = isAlloc ? 'ALLOC' : 'FREE'
     const typeText = this.scene.add
-      .text(10, 6, typeLabel, {
-        fontSize: '9px',
+      .text(14, 10, typeLabel, {
+        fontSize: '13px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#aaaaaa',
         fontStyle: 'bold',
@@ -88,8 +99,9 @@ export class RequestQueueHUD {
       detail = req.payload.pointer
     }
     const detailText = this.scene.add
-      .text(10, 20, detail, {
-        fontSize: '10px',
+      .text(14, 32, detail, {
+        fontSize: '16px',
+        resolution: textResolution(),
         fontFamily: 'monospace',
         color: '#cccccc',
         lineSpacing: 2,
@@ -112,8 +124,8 @@ export class RequestQueueHUD {
       }
       const shapeW = (maxC - minC + 1) * MINI_CELL
       const shapeH = (maxR - minR + 1) * MINI_CELL
-      const offsetX = CARD_W - 10 - shapeW
-      const offsetY = (CARD_H - shapeH) / 2
+      const offsetX = CARD_W - 12 - shapeW
+      const offsetY = CARD_H - 12 - shapeH
       const miniG = this.scene.add.graphics()
       for (const cell of shape) {
         const cx = offsetX + (cell.col - minC) * MINI_CELL
@@ -135,10 +147,10 @@ export class RequestQueueHUD {
       timerBar = this.scene.add.graphics()
       // Track
       timerBar.fillStyle(0x1e2130)
-      timerBar.fillRect(10, CARD_H - 10, CARD_W - 20, 3)
+      timerBar.fillRect(14, CARD_H - 14, CARD_W - 28, 4)
       // Fill
       timerBar.fillStyle(isUrgent ? URGENT_COLOR : FREE_COLOR)
-      timerBar.fillRect(10, CARD_H - 10, (CARD_W - 20) * remaining, 3)
+      timerBar.fillRect(14, CARD_H - 14, (CARD_W - 28) * remaining, 4)
       container.add(timerBar)
 
       if (isUrgent) {
@@ -148,7 +160,7 @@ export class RequestQueueHUD {
         bg.lineStyle(1, URGENT_COLOR)
         bg.strokeRoundedRect(0, 0, CARD_W, CARD_H, CARD_RADIUS)
         bg.fillStyle(URGENT_COLOR)
-        bg.fillRect(0, CARD_RADIUS, 3, CARD_H - CARD_RADIUS * 2)
+        bg.fillRect(0, CARD_RADIUS, 4, CARD_H - CARD_RADIUS * 2)
       }
     }
 
